@@ -1,0 +1,119 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  # C# code analysis
+  csharp-lint:
+    name: C# Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Install dotnet-format
+      run: dotnet tool install -g dotnet-format
+    
+    - name: Check formatting
+      run: dotnet format FirstMake.sln --verify-no-changes --verbosity diagnostic
+    
+    - name: Run analyzers
+      run: dotnet build FirstMake.sln --configuration Release /p:TreatWarningsAsErrors=false
+
+  # TypeScript/React linting
+  typescript-lint:
+    name: TypeScript/React Linting
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: src/UI
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: src/UI/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run ESLint
+      run: npm run lint
+    
+    - name: Type check
+      run: npx tsc --noEmit
+
+  # Security scanning
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+    
+    - name: Run .NET security scan
+      uses: security-code-scan/security-code-scan-add-action@main
+      with:
+        files: '**/*.csproj'
+
+  # Dependency check
+  dependency-check:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Check for vulnerable dependencies (.NET)
+      run: |
+        dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerabilities.txt
+        if grep -q "has the following vulnerable packages" vulnerabilities.txt; then
+          echo "::error::Vulnerable dependencies found"
+          exit 1
+        fi
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+    
+    - name: Audit npm dependencies
+      working-directory: src/UI
+      run: npm audit --audit-level=high
+      continue-on-error: true

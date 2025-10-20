@@ -1,0 +1,207 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '20.x'
+
+jobs:
+  # Backend Build and Test
+  backend-build:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore FirstMake.sln
+      
+    - name: Build solution
+      run: dotnet build FirstMake.sln --configuration Release --no-restore
+      
+    - name: Run unit tests
+      run: dotnet test FirstMake.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      
+    - name: Publish test results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: .NET Tests
+        path: '**/test-results.trx'
+        reporter: dotnet-trx
+        fail-on-error: true
+        
+    - name: Publish API
+      run: dotnet publish src/Api/Api.csproj --configuration Release --output ./publish/api --no-build
+      
+    - name: Publish AI Gateway
+      run: dotnet publish src/AiGateway/AiGateway.csproj --configuration Release --output ./publish/aigateway --no-build
+      
+    - name: Upload API artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: api-build
+        path: ./publish/api
+        retention-days: 7
+        
+    - name: Upload AI Gateway artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: aigateway-build
+        path: ./publish/aigateway
+        retention-days: 7
+
+  # Frontend Build and Lint
+  frontend-build:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: src/UI
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: src/UI/package-lock.json
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Lint code
+      run: npm run lint
+      
+    - name: Build production
+      run: npm run build
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ui-build
+        path: src/UI/dist
+        retention-days: 7
+
+  # Code Quality and Security
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Install dotnet format
+      run: dotnet tool install -g dotnet-format
+      
+    - name: Check code formatting
+      run: dotnet format FirstMake.sln --verify-no-changes --verbosity diagnostic
+      
+    - name: Run security scan
+      uses: securego/gosec@master
+      with:
+        args: '-no-fail -fmt sarif -out results.sarif ./...'
+      continue-on-error: true
+
+  # Docker Build
+  docker-build:
+    name: Docker Images
+    runs-on: ubuntu-latest
+    needs: [backend-build, frontend-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=ref,event=branch
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Release on tag
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [backend-build, frontend-build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+        
+    - name: Create release archive
+      run: |
+        cd artifacts
+        zip -r ../firstmake-api-${{ github.ref_name }}.zip api-build/
+        zip -r ../firstmake-aigateway-${{ github.ref_name }}.zip aigateway-build/
+        zip -r ../firstmake-ui-${{ github.ref_name }}.zip ui-build/
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          firstmake-api-${{ github.ref_name }}.zip
+          firstmake-aigateway-${{ github.ref_name }}.zip
+          firstmake-ui-${{ github.ref_name }}.zip
+          RELEASE_NOTES.md
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
