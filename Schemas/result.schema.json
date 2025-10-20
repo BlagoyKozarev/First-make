@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://firstmake.local/schemas/result.schema.json",
+  "title": "LP Optimization Result Schema",
+  "description": "Schema for LP optimization results with coefficients, per-KSS exports, and summary",
+  "type": "object",
+  "required": ["coeffs", "kssExports", "summary"],
+  "properties": {
+    "coeffs": {
+      "type": "array",
+      "description": "Computed coefficients per unique (name, unit) pair",
+      "items": {
+        "type": "object",
+        "required": ["name", "unit", "c"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit of measurement"
+          },
+          "c": {
+            "type": "number",
+            "description": "Optimized coefficient (typically 0.4 - 2.0)"
+          },
+          "basePrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Base price from catalogue"
+          }
+        }
+      }
+    },
+    "kssExports": {
+      "type": "array",
+      "description": "Export data for each КСС file (per stage or combined)",
+      "items": {
+        "type": "object",
+        "required": ["file", "rows"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Output filename (e.g., 'КСС_Stage1_iter1.xlsx')"
+          },
+          "stage": {
+            "type": "string",
+            "description": "Stage code (if per-stage export)"
+          },
+          "rows": {
+            "type": "array",
+            "description": "Rows to export with computed values",
+            "items": {
+              "type": "object",
+              "required": ["stage", "name", "unit", "qty", "basePrice", "c", "workPrice", "value"],
+              "properties": {
+                "stage": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "qty": {
+                  "type": "number"
+                },
+                "basePrice": {
+                  "type": "number",
+                  "description": "Base price from catalogue"
+                },
+                "c": {
+                  "type": "number",
+                  "description": "Applied coefficient"
+                },
+                "workPrice": {
+                  "type": "number",
+                  "description": "Working price = round2(basePrice * c)"
+                },
+                "value": {
+                  "type": "number",
+                  "description": "Total value = qty * workPrice"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Per-stage summary and feasibility check",
+      "required": ["perStage", "ok"],
+      "properties": {
+        "perStage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["stage", "forecast", "proposed", "gap", "ok"],
+            "properties": {
+              "stage": {
+                "type": "string",
+                "description": "Stage code"
+              },
+              "forecast": {
+                "type": "number",
+                "description": "Forecasted budget cap"
+              },
+              "proposed": {
+                "type": "number",
+                "description": "Proposed total value (sum of all items in stage)"
+              },
+              "gap": {
+                "type": "number",
+                "description": "forecast - proposed (positive = under budget)"
+              },
+              "ok": {
+                "type": "boolean",
+                "description": "True if proposed <= forecast"
+              }
+            }
+          }
+        },
+        "ok": {
+          "type": "boolean",
+          "description": "True if ALL stages are within budget"
+        },
+        "totalValue": {
+          "type": "number",
+          "description": "Sum of all proposed values across all stages"
+        },
+        "penalty": {
+          "type": "number",
+          "description": "L1 penalty term (λ * Σ|c - 1|)"
+        },
+        "objective": {
+          "type": "number",
+          "description": "Final objective value (totalValue - penalty)"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optimization metadata",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lambda": {
+          "type": "number",
+          "description": "Lambda parameter used for L1 penalty"
+        },
+        "bounds": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number",
+              "description": "Minimum coefficient bound"
+            },
+            "max": {
+              "type": "number",
+              "description": "Maximum coefficient bound"
+            }
+          }
+        },
+        "solverStatus": {
+          "type": "string",
+          "description": "LP solver status (OPTIMAL, FEASIBLE, INFEASIBLE, etc.)"
+        },
+        "solveDuration": {
+          "type": "number",
+          "description": "Solve time in milliseconds"
+        }
+      }
+    }
+  }
+}

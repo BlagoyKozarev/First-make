@@ -1,0 +1,26 @@
+**Task:** Extract structured BoQ (КСС) data from the provided text chunks.
+
+**Language:** Bulgarian (bg-BG)
+
+**Schema:** You must output JSON that conforms to this JSON Schema:
+{schema_placeholder}
+
+**Input Text:**
+---
+{text_chunks_placeholder}
+---
+
+**Instructions:**
+1. Extract project metadata (name, date, employee if available)
+2. Identify all construction stages with their codes, names, and forecast budgets
+3. Extract line items with: stage assignment, item name, unit of measurement, and quantity
+4. If source provenance is available (file name, page, cell ref), include it in the "source" field
+5. Ensure every item's "stage" field matches a valid stage "code"
+
+**Notes:**
+- Do NOT invent data - extract only what is clearly stated
+- Preserve units exactly as written (e.g., "бр.", "м2", "кв.м")
+- Quantities should be positive decimal numbers
+- Forecast budgets are typically in BGN (Bulgarian Lev)
+
+**Output:** Return ONLY the JSON object conforming to the schema above. No extra text.

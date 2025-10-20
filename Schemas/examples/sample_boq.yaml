@@ -1,0 +1,96 @@
+# Example BoQ Data
+# This is a sample for testing and development
+
+project:
+  name: "Residential Building - Sample Project"
+  date: "2025-10-20"
+  employee: "Test User"
+
+stages:
+  - code: "S1"
+    name: "Подготвителни работи"
+    forecast: 50000.00
+  
+  - code: "S2"
+    name: "Груб строеж"
+    forecast: 200000.00
+  
+  - code: "S3"
+    name: "Довършителни работи"
+    forecast: 150000.00
+
+items:
+  # Stage 1 items
+  - stage: "S1"
+    name: "Почистване на терен"
+    unit: "м2"
+    qty: 500.0
+    source:
+      file: "sample_kss.xlsx"
+      page: 1
+      cell: "A10"
+  
+  - stage: "S1"
+    name: "Изкопни работи - механизирани"
+    unit: "м3"
+    qty: 150.0
+    source:
+      file: "sample_kss.xlsx"
+      page: 1
+      cell: "A11"
+  
+  # Stage 2 items
+  - stage: "S2"
+    name: "Бетон C25/30"
+    unit: "м3"
+    qty: 85.5
+    source:
+      file: "sample_kss.xlsx"
+      page: 2
+      cell: "A5"
+  
+  - stage: "S2"
+    name: "Армировка Ø10-Ø16"
+    unit: "кг"
+    qty: 4200.0
+    source:
+      file: "sample_kss.xlsx"
+      page: 2
+      cell: "A6"
+  
+  - stage: "S2"
+    name: "Зидария тухла 25см"
+    unit: "м2"
+    qty: 650.0
+    source:
+      file: "sample_kss.xlsx"
+      page: 2
+      cell: "A7"
+  
+  # Stage 3 items
+  - stage: "S3"
+    name: "Мазилка вътрешна"
+    unit: "м2"
+    qty: 1200.0
+    source:
+      file: "sample_kss.xlsx"
+      page: 3
+      cell: "A3"
+  
+  - stage: "S3"
+    name: "Боядисване латекс"
+    unit: "м2"
+    qty: 1200.0
+    source:
+      file: "sample_kss.xlsx"
+      page: 3
+      cell: "A4"
+  
+  - stage: "S3"
+    name: "Теракот под"
+    unit: "м2"
+    qty: 350.0
+    source:
+      file: "sample_kss.xlsx"
+      page: 3
+      cell: "A5"

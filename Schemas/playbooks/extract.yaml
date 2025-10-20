@@ -1,0 +1,78 @@
+# Extraction Playbook
+# Defines the step-by-step pipeline for extracting BoQ data from heterogeneous inputs
+# Deterministic parsers are tried first; LLM is used as fallback with schema validation
+
+name: "BoQ Extraction Pipeline"
+description: "Extract structured BoQ data from XLSX, DOCX, PDF, and scanned documents"
+version: "1.0"
+
+steps:
+  # Step 1: Try deterministic XLSX parsing (OpenXML/EPPlus)
+  - name: "deterministic_xlsx"
+    description: "Parse XLSX files using OpenXML for tabular data"
+    enabled: true
+    timeout_ms: 5000
+    priority: 1
+    
+  # Step 2: Try deterministic DOCX parsing (OpenXML)
+  - name: "deterministic_docx"
+    description: "Extract tables from DOCX files using OpenXML"
+    enabled: true
+    timeout_ms: 5000
+    priority: 2
+    
+  # Step 3: Try deterministic PDF parsing (iText7/PDFium)
+  - name: "deterministic_pdf"
+    description: "Extract text and tables from text-based PDFs"
+    enabled: true
+    timeout_ms: 10000
+    priority: 3
+    
+  # Step 4: OCR for low-text or scanned documents
+  - name: "ocr_if_low_text"
+    description: "Run Tesseract OCR if PDF has < 100 chars or is image-based"
+    enabled: true
+    timeout_ms: 30000
+    priority: 4
+    conditions:
+      - "text_density < 0.1"
+      - "is_scanned == true"
+    
+  # Step 5: LLM extraction with JSON-mode prompts
+  - name: "llm_extract_json"
+    description: "Use BG GPT-7B to extract JSON from raw text/OCR output"
+    enabled: true
+    timeout_ms: 60000
+    priority: 5
+    config:
+      model: "bg-gpt-7b"
+      temperature: 0.1
+      max_tokens: 4096
+      json_mode: true
+      schema_ref: "/Schemas/boq.schema.json"
+      system_prompt_file: "/Schemas/prompts/extract.system.txt"
+      user_prompt_file: "/Schemas/prompts/extract.user.txt"
+    
+  # Step 6: Schema validation with auto-retry
+  - name: "schema_validate_or_retry"
+    description: "Validate against boq.schema.json; retry with corrective prompts if invalid"
+    enabled: true
+    max_retries: 3
+    priority: 6
+    
+  # Step 7: Evidence tagging (attach source provenance)
+  - name: "evidence_tagging"
+    description: "Tag each item with source file, page, cell/bbox coordinates"
+    enabled: true
+    priority: 7
+
+# Fallback behavior
+fallback:
+  on_failure: "return_partial_with_warnings"
+  log_level: "warn"
+
+# Quality thresholds
+quality:
+  min_items_extracted: 1
+  min_stages_extracted: 1
+  require_project_metadata: true

@@ -1,0 +1,31 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+*.log
+.vs/
+.vscode/
+*.DotSettings.user
+
+## Node
+node_modules/
+dist/
+.env
+.env.local
+*.tsbuildinfo
+
+## SQLite
+*.db
+*.db-shm
+*.db-wal
+
+## Temp
+*.tmp
+*.temp
+uploads/
+exports/

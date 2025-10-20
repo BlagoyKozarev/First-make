@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://firstmake.local/schemas/pricebase.schema.json",
+  "title": "Price Base Catalogue Schema",
+  "description": "Schema for base price catalogue used for matching and LP optimization",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["name", "unit", "basePrice"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Canonical item name (normalized)"
+      },
+      "unit": {
+        "type": "string",
+        "description": "Canonical unit of measurement"
+      },
+      "basePrice": {
+        "type": "number",
+        "minimum": 0,
+        "description": "Base unit price (BGN) before coefficient application"
+      },
+      "category": {
+        "type": "string",
+        "description": "Optional category for grouping"
+      },
+      "aliases": {
+        "type": "array",
+        "description": "Alternative names for fuzzy matching",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

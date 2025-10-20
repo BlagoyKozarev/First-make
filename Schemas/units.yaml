@@ -1,0 +1,99 @@
+# Unit Normalization Aliases
+# Canonical units with their variants for fuzzy matching and normalization
+
+aliases:
+  # Piece/Item
+  - canonical: "бр"
+    variants:
+      - "бр."
+      - "брой"
+      - "броя"
+      - "pcs"
+      - "pc"
+      - "piece"
+      - "pieces"
+  
+  # Linear meter
+  - canonical: "м"
+    variants:
+      - "m"
+      - "метър"
+      - "метра"
+      - "meter"
+      - "meters"
+      - "м."
+      - "lin.m"
+  
+  # Square meter
+  - canonical: "м2"
+    variants:
+      - "m2"
+      - "кв.м"
+      - "кв. м."
+      - "кв.м."
+      - "sq.m"
+      - "sqm"
+      - "м²"
+      - "m²"
+  
+  # Cubic meter
+  - canonical: "м3"
+    variants:
+      - "m3"
+      - "куб.м"
+      - "куб. м."
+      - "куб.м."
+      - "cu.m"
+      - "cbm"
+      - "м³"
+      - "m³"
+  
+  # Kilogram
+  - canonical: "кг"
+    variants:
+      - "kg"
+      - "килограм"
+      - "килограма"
+      - "кг."
+      - "kilogram"
+  
+  # Ton
+  - canonical: "т"
+    variants:
+      - "t"
+      - "тон"
+      - "тона"
+      - "ton"
+      - "тн"
+      - "т."
+  
+  # Liter
+  - canonical: "л"
+    variants:
+      - "l"
+      - "литър"
+      - "литра"
+      - "liter"
+      - "litre"
+      - "л."
+  
+  # Hour (work hours)
+  - canonical: "ч"
+    variants:
+      - "h"
+      - "час"
+      - "часа"
+      - "hour"
+      - "hours"
+      - "hr"
+      - "hrs"
+      - "ч."
+  
+  # Set/Kit
+  - canonical: "комплект"
+    variants:
+      - "к-т"
+      - "кт"
+      - "set"
+      - "kit"
+      - "комплекта"

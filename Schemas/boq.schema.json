@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://firstmake.local/schemas/boq.schema.json",
+  "title": "Bill of Quantities (BoQ) Schema",
+  "description": "Schema for normalized КСС (Bill of Quantities) data extracted from heterogeneous input documents",
+  "type": "object",
+  "required": ["project", "stages", "items"],
+  "properties": {
+    "project": {
+      "type": "object",
+      "description": "Project metadata",
+      "required": ["name", "date"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Project name or identifier"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Project date in ISO 8601 format (YYYY-MM-DD)"
+        },
+        "employee": {
+          "type": "string",
+          "description": "Employee or contractor responsible"
+        }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "description": "Construction stages with forecasted budgets",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "forecast"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Unique stage identifier/code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Stage name or description"
+          },
+          "forecast": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Forecasted budget cap for this stage (BGN)"
+          }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "description": "Line items - work packages with quantities",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["stage", "name", "unit", "qty"],
+        "properties": {
+          "stage": {
+            "type": "string",
+            "description": "Stage code this item belongs to"
+          },
+          "name": {
+            "type": "string",
+            "description": "Item name/description"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit of measurement (бр, м, м2, etc.)"
+          },
+          "qty": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Quantity"
+          },
+          "source": {
+            "type": "object",
+            "description": "Evidence/provenance information",
+            "properties": {
+              "file": {
+                "type": "string",
+                "description": "Source filename"
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Page number in source document"
+              },
+              "cell": {
+                "type": "string",
+                "description": "Cell reference for XLSX (e.g., 'A5')"
+              },
+              "bbox": {
+                "type": "array",
+                "description": "Bounding box [x1, y1, x2, y2] for PDF/OCR",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 4,
+                "maxItems": 4
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+services:
+  api:
+    build: ./src/Api
+    ports: ["5000:5000"]
+    environment:
+      - ASPNETCORE_URLS=http://0.0.0.0:5000
+  ai-gateway:
+    build: ./src/AiGateway
+    ports: ["5001:5001"]
+    environment:
+      - LLM_BASE_URL=http://host.docker.internal:11434
+  ui:
+    build: ./src/UI
+    ports: ["5173:5173"]
+    environment:
+      - VITE_API_URL=http://localhost:5000
+      - VITE_AI_URL=http://localhost:5001
+  ui:
+    build: ./src/UI
+    ports: ["5173:5173"]
+    environment:
+      - VITE_API_URL=http://localhost:5000
+      - VITE_AI_URL=http://localhost:5001
