@@ -1,0 +1,43 @@
+[Unit]
+Description=FirstMake Agent - API Service
+After=network.target
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=simple
+User=firstmake
+Group=firstmake
+WorkingDirectory=/var/www/firstmake
+EnvironmentFile=/var/www/firstmake/.env
+
+# Pull latest image before start
+ExecStartPre=/usr/bin/docker pull ghcr.io/blagoyko zarev/first-make-api:latest
+
+# Start container
+ExecStart=/usr/bin/docker run --rm \
+    --name firstmake-api \
+    -p 5000:8080 \
+    -v /var/www/firstmake/data:/data \
+    -v /var/www/firstmake/logs/api:/logs \
+    -e ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT} \
+    -e ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection} \
+    ghcr.io/blagoyko zarev/first-make-api:latest
+
+# Stop container
+ExecStop=/usr/bin/docker stop firstmake-api
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Resource limits
+MemoryLimit=2G
+CPUQuota=200%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

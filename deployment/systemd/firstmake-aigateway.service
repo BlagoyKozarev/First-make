@@ -1,0 +1,46 @@
+[Unit]
+Description=FirstMake Agent - AI Gateway Service
+After=network.target
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=simple
+User=firstmake
+Group=firstmake
+WorkingDirectory=/var/www/firstmake
+EnvironmentFile=/var/www/firstmake/.env
+
+# Pull latest image before start
+ExecStartPre=/usr/bin/docker pull ghcr.io/blagoyko zarev/first-make-aigateway:latest
+
+# Start container
+ExecStart=/usr/bin/docker run --rm \
+    --name firstmake-aigateway \
+    -p 5001:8080 \
+    -v /var/www/firstmake/logs/aigateway:/logs \
+    -e ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT} \
+    -e BgGpt__ApiKey=${BGGPT_API_KEY} \
+    -e BgGpt__BaseUrl=${BGGPT_BASE_URL} \
+    -e BgGpt__Model=${BGGPT_MODEL} \
+    -e Tesseract__DataPath=${TESSERACT_DATA_PATH} \
+    -e Tesseract__Languages=${TESSERACT_LANGUAGES} \
+    ghcr.io/blagoyko zarev/first-make-aigateway:latest
+
+# Stop container
+ExecStop=/usr/bin/docker stop firstmake-aigateway
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Resource limits
+MemoryLimit=3G
+CPUQuota=200%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
