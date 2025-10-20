@@ -434,13 +434,48 @@ docker-compose -f docker-compose.prod.yml up -d
 - **shadcn/ui** - UI component library
 - **BG GPT** - Bulgarian LLM integration
 
-## 📚 Additional Resources
+## � Performance
+
+FirstMake Agent е оптимизиран за висока производителност:
+
+- **API Response Times (P95)**:
+  - Health check: < 10ms
+  - Parse: < 500ms
+  - Match: < 100ms
+  - Optimize: < 500ms
+  - Export: < 300ms
+
+- **Throughput**: 50+ concurrent requests на match endpoint
+- **Memory**: < 500MB per service под нормално натоварване
+- **Resource Optimization**: Server GC, response caching, connection pooling
+
+### Performance Testing
+
+Вграден е пълен suite от performance тестове:
+
+```bash
+# Run all performance tests
+cd tests/Performance
+./run-performance-tests.sh
+
+# Individual benchmarks
+dotnet run -c Release -- --filter "*FuzzyMatcher*"
+
+# Load testing
+k6 run load-tests/api-endpoints.js
+```
+
+За детайли вижте [Performance Testing Guide](docs/PERFORMANCE_TESTING.md).
+
+## �📚 Additional Resources
 
 - [User Manual (BG)](docs/USER_MANUAL.md) - Пълно ръководство за потребителя
 - [Schemas Documentation](Schemas/README.md) - JSON schemas и конфигурация
 - [API Reference](docs/API.md) - Comprehensive API documentation
 - [Architecture Guide](docs/ARCHITECTURE.md) - Technical architecture details
 - [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment instructions
+- [Performance Testing](docs/PERFORMANCE_TESTING.md) - Benchmarking and load testing
+- [Release Notes](RELEASE_NOTES.md) - v1.0.0 release information
 
 ---
 

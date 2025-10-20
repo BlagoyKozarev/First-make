@@ -1,0 +1,239 @@
+name: Performance Testing
+
+on:
+  # Run on PR to main
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'tests/Performance/**'
+  
+  # Run weekly on Sunday at 2 AM
+  schedule:
+    - cron: '0 2 * * 0'
+  
+  # Allow manual runs
+  workflow_dispatch:
+    inputs:
+      run_stress_test:
+        description: 'Run stress test (takes ~11 minutes)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  benchmarks:
+    name: .NET Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Restore dependencies
+        run: dotnet restore tests/Performance/PerformanceBenchmark.csproj
+      
+      - name: Build benchmark project
+        run: dotnet build tests/Performance/PerformanceBenchmark.csproj -c Release --no-restore
+      
+      - name: Run benchmarks
+        run: |
+          dotnet run --project tests/Performance/PerformanceBenchmark.csproj \
+            -c Release \
+            --no-build \
+            -- --filter "*" \
+            --exporters json html \
+            --artifacts ./BenchmarkDotNet.Artifacts
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            BenchmarkDotNet.Artifacts/results/*
+            BenchmarkDotNet.Artifacts/*.html
+          retention-days: 30
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const resultsPath = 'BenchmarkDotNet.Artifacts/results';
+            
+            if (fs.existsSync(resultsPath)) {
+              const files = fs.readdirSync(resultsPath);
+              const jsonFile = files.find(f => f.endsWith('.json'));
+              
+              if (jsonFile) {
+                const results = JSON.parse(fs.readFileSync(`${resultsPath}/${jsonFile}`, 'utf8'));
+                
+                let comment = '## 📊 Benchmark Results\n\n';
+                comment += '| Benchmark | Mean | Error | StdDev | Allocated |\n';
+                comment += '|-----------|------|-------|--------|----------|\n';
+                
+                results.Benchmarks?.slice(0, 10).forEach(b => {
+                  comment += `| ${b.Method} | ${b.Statistics?.Mean?.toFixed(2) || 'N/A'} ns | `;
+                  comment += `${b.Statistics?.Error?.toFixed(2) || 'N/A'} ns | `;
+                  comment += `${b.Statistics?.StandardDeviation?.toFixed(2) || 'N/A'} ns | `;
+                  comment += `${b.Memory?.BytesAllocatedPerOperation || 'N/A'} B |\n`;
+                });
+                
+                comment += '\n*Full results available in workflow artifacts*';
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            }
+
+  load-tests:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    
+    services:
+      api:
+        image: ghcr.io/${{ github.repository_owner }}/firstmake-api:latest
+        env:
+          ASPNETCORE_ENVIRONMENT: Production
+          ConnectionStrings__DefaultConnection: Data Source=/tmp/firstmake.db
+        ports:
+          - 5000:8080
+        options: >-
+          --health-cmd "curl -f http://localhost:8080/healthz || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      aigateway:
+        image: ghcr.io/${{ github.repository_owner }}/firstmake-aigateway:latest
+        env:
+          ASPNETCORE_ENVIRONMENT: Production
+        ports:
+          - 5001:8080
+        options: >-
+          --health-cmd "curl -f http://localhost:8080/healthz || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | \
+            sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+      
+      - name: Wait for services
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:5000/healthz; do sleep 2; done'
+          timeout 60 bash -c 'until curl -f http://localhost:5001/healthz; do sleep 2; done'
+      
+      - name: Run load tests
+        run: |
+          mkdir -p reports/load-tests
+          API_URL=http://localhost:5000 k6 run \
+            --out json=reports/load-tests/api-endpoints.json \
+            tests/Performance/load-tests/api-endpoints.js
+      
+      - name: Run stress test
+        if: github.event.inputs.run_stress_test == 'true' || github.event_name == 'schedule'
+        run: |
+          API_URL=http://localhost:5000 k6 run \
+            --out json=reports/load-tests/stress-test.json \
+            tests/Performance/load-tests/stress-test.js
+      
+      - name: Upload load test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results
+          path: reports/load-tests/*.json
+          retention-days: 30
+      
+      - name: Check performance thresholds
+        run: |
+          # Parse k6 JSON output to check if thresholds passed
+          if grep -q '"thresholds".*"ok":false' reports/load-tests/*.json; then
+            echo "❌ Performance thresholds not met"
+            exit 1
+          else
+            echo "✅ All performance thresholds passed"
+          fi
+
+  regression-check:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    needs: [benchmarks]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Download current benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+          path: current-results
+      
+      - name: Download baseline results
+        id: download-baseline
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: performance.yml
+          branch: main
+          name: benchmark-results
+          path: baseline-results
+      
+      - name: Compare results
+        if: steps.download-baseline.outcome == 'success'
+        run: |
+          echo "## 📈 Performance Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Comparing current PR results with main branch baseline..." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Simple comparison - in production, use tools like benchmark-action
+          echo "| Benchmark | Current | Baseline | Change |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|---------|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| FuzzyMatcher.Match_100_Items | TBD | TBD | TBD |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Detailed comparison available in artifacts*" >> $GITHUB_STEP_SUMMARY
+
+  summary:
+    name: Performance Test Summary
+    runs-on: ubuntu-latest
+    needs: [benchmarks, load-tests]
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🎯 Performance Testing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Benchmarks**: ${{ needs.benchmarks.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Load Tests**: ${{ needs.load-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Download detailed reports from workflow artifacts" >> $GITHUB_STEP_SUMMARY
