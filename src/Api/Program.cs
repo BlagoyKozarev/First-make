@@ -44,6 +44,10 @@ builder.Services.AddSingleton<LpOptimizer>();
 // Register Api services
 builder.Services.AddSingleton<ExcelExportService>();
 builder.Services.AddScoped<ObservationService>();
+builder.Services.AddSingleton<ProjectSessionService>();
+
+// Add Controllers for new multi-file API
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
@@ -59,6 +63,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+
+// Map controllers (new multi-file API)
+app.MapControllers();
 
 // ========== ENDPOINTS ==========
 

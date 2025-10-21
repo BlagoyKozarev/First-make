@@ -9,10 +9,11 @@
 
 ## 🎯 Overview
 
-FirstMake Agent е локално приложение за обработка на Количествено-стойностни сметки (КСС) и оптимизация на строителни оферти. Системата позволява автоматизирано извличане, съпоставяне и оптимизация на данни от разнородни източници (XLSX, DOCX, PDF, сканирани документи).
+FirstMake Agent е **desktop приложение** за обработка на Количествено-стойностни сметки (КСС) и оптимизация на строителни оферти. Системата позволява автоматизирано извличане, съпоставяне и оптимизация на данни от разнородни източници (XLSX, DOCX, PDF, сканирани документи).
 
 ### Основни функционалности
 
+- 🖥️ **Desktop App** - Electron wrapper с auto-start на backend
 - 📄 **Интелигентно парсиране** - Поддръжка на XLSX, DOCX, PDF + OCR за сканирани документи
 - 🔍 **Fuzzy matching** - Автоматично съпоставяне на позиции с ценови каталог
 - 📊 **LP оптимизация** - Google OR-Tools за оптимално ценообразуване
@@ -20,6 +21,7 @@ FirstMake Agent е локално приложение за обработка �
 - 💾 **Локално съхранение** - SQLite база данни, без cloud dependencies
 - 🎨 **Модерен UI** - React с Tailwind CSS и shadcn/ui компоненти
 - 📑 **Excel експорт** - Генериране на КСС файлове с формули и форматиране
+- 🔔 **System Tray** - Фоново изпълнение с tray icon
 
 ## 🏗️ Архитектура
 
@@ -83,36 +85,58 @@ FirstMake Agent е локално приложение за обработка �
 - Node.js 20+
 - SQLite3 (вграден в .NET)
 
-### Development Setup
+### Desktop App (Production)
+
+```bash
+# 1. Download installer from Releases
+# Windows: FirstMake-Setup-2.0.0.exe
+# Linux: FirstMake-2.0.0.AppImage or firstmake_2.0.0_amd64.deb
+
+# 2. Install and run
+# Backend стартира автоматично
+# App достъпен от System Tray
+```
+
+### Desktop App (Development)
 
 ```bash
 # 1. Clone repository
 git clone https://github.com/BlagoyKozarev/First-make.git
 cd First-make
 
-# 2. Restore .NET dependencies
+# 2. Install dependencies
 dotnet restore
+cd desktop && npm install
+cd ../src/UI && npm install
 
-# 3. Run database migrations
+# 3. Run in dev mode (auto-starts backend + frontend + Electron)
+cd ../../desktop
+./dev-start.sh  # Linux/Mac
+# or
+dev-start.bat   # Windows
+
+# Or manually:
+# Terminal 1 - Backend
+cd src/Api && dotnet run --urls "http://localhost:5085"
+
+# Terminal 2 - Frontend
+cd src/UI && npm run dev
+
+# Terminal 3 - Electron
+cd desktop && NODE_ENV=development npm start
+```
+
+### Web Mode (Legacy)
+
+```bash
+# Start API manually
 cd src/Api
-dotnet ef database update
+dotnet run --urls "http://localhost:5085"
 
-# 4. Install UI dependencies
+# Start UI
 cd ../UI
-npm install
-
-# 5. Start all services
-# Terminal 1 - API
-cd src/Api
-dotnet run --urls "http://localhost:5000"
-
-# Terminal 2 - AiGateway
-cd src/AiGateway
-dotnet run --urls "http://localhost:5001"
-
-# Terminal 3 - UI
-cd src/UI
 npm run dev
+# Open http://localhost:5173
 ```
 
 ### Using Docker Compose
@@ -373,7 +397,37 @@ CREATE INDEX IX_SessionData_CreatedAt ON SessionData(CreatedAt);
 
 ## 📦 Deployment
 
-### Production Build
+### Desktop App Production Build
+
+```bash
+# Full automated build (backend + frontend + Electron)
+cd desktop
+./build-all.sh  # Linux/Mac
+# or
+build-all.bat   # Windows
+
+# Output:
+# - Windows: desktop/dist/FirstMake-Setup-2.0.0.exe (NSIS installer)
+#            desktop/dist/FirstMake-2.0.0-win.zip (portable)
+# - Linux:   desktop/dist/FirstMake-2.0.0.AppImage
+#            desktop/dist/firstmake_2.0.0_amd64.deb
+
+# Manual build steps:
+# 1. Build backend
+cd src/Api
+dotnet publish -c Release -o ../../desktop/backend-build
+
+# 2. Build frontend
+cd ../UI
+npm run build  # Output: dist/
+
+# 3. Build Electron
+cd ../../desktop
+npm install
+npm run build
+```
+
+### Web Deployment (Legacy)
 
 ```bash
 # Backend
@@ -401,10 +455,19 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ### System Requirements
 
+#### Desktop App
+- **OS**: Windows 10+ / Ubuntu 20.04+ / macOS 10.15+
 - **CPU**: 2+ cores (LP optimization е CPU-intensive)
+- **RAM**: 4GB minimum, 8GB recommended
+- **Disk**: 500MB за app + storage за database
+- **.NET Runtime**: Bundled (self-contained)
+
+#### Web Mode (Development)
+- **CPU**: 2+ cores
 - **RAM**: 4GB minimum, 8GB recommended
 - **Disk**: 1GB за application + storage за database
 - **OS**: Linux, macOS, Windows (cross-platform)
+- **.NET SDK**: 8.0+ required
 
 ## 🤝 Contributing
 
@@ -466,6 +529,128 @@ k6 run load-tests/api-endpoints.js
 ```
 
 За детайли вижте [Performance Testing Guide](docs/PERFORMANCE_TESTING.md).
+
+## 🖥️ Desktop App Architecture
+
+FirstMake v2.0 е пълноценно **Electron desktop приложение** с embedded backend.
+
+### Features
+
+- **Auto-Start Backend**: Electron автоматично стартира .NET API при отваряне
+- **System Tray**: Persistent background mode с tray icon (click to show/hide)
+- **Native Dialogs**: File picker чрез IPC bridge (selectFiles, selectFolder, saveFile)
+- **Window State**: Saved position/size чрез electron-store
+- **Logging**: Unified logs (main + renderer + backend) с electron-log
+- **Cross-Platform**: Windows (NSIS installer), Linux (AppImage, deb)
+
+### Architecture
+
+```
+┌────────────────────────────────────────────────────────┐
+│                  Electron Main Process                  │
+│                                                         │
+│  ┌──────────────┐          ┌──────────────────────┐   │
+│  │ startBackend │ ────────▶│  .NET API Process    │   │
+│  │              │          │  (port 5085)         │   │
+│  │ • spawn()    │          │  • Auto-start        │   │
+│  │ • monitor    │          │  • stdout logging    │   │
+│  │ • SIGTERM    │          │  • SIGTERM on quit   │   │
+│  └──────────────┘          └──────────────────────┘   │
+│                                                         │
+│  ┌──────────────┐          ┌──────────────────────┐   │
+│  │ System Tray  │          │  IPC Handlers        │   │
+│  │ • Show/Hide  │          │  • selectFiles       │   │
+│  │ • Exit       │          │  • selectFolder      │   │
+│  └──────────────┘          │  • saveFile          │   │
+│                            └──────────────────────┘   │
+└────────────────────────────────────────────────────────┘
+                        │
+                        ▼
+┌────────────────────────────────────────────────────────┐
+│              Renderer Process (React UI)               │
+│                                                         │
+│  window.electron.selectFiles()  ─────▶  IPC Bridge    │
+│  window.electron.getBackendStatus() ──▶  Preload      │
+└────────────────────────────────────────────────────────┘
+```
+
+### Backend Lifecycle
+
+**Development Mode:**
+```bash
+NODE_ENV=development npm start
+# Backend: dotnet run --project ../src/Api/Api.csproj
+# Frontend: http://localhost:5173 (Vite dev server)
+```
+
+**Production Mode:**
+```bash
+npm run build
+# Backend: Bundled exe in resources/backend/
+# Frontend: Bundled dist/ files
+```
+
+**Startup Sequence:**
+1. Electron main process starts
+2. `startBackend()` spawns .NET API
+3. Monitors stdout for "Now listening on: http://localhost:5085"
+4. Creates window after backend ready (or 10s timeout)
+5. Loads React UI
+
+**Shutdown Sequence:**
+1. User clicks Exit or closes window
+2. `stopBackend()` sends SIGTERM to API process
+3. Electron waits for graceful shutdown
+4. App exits
+
+### Desktop-Specific APIs
+
+React code може да използва desktop APIs чрез IPC bridge:
+
+```typescript
+// Check if running in Electron
+if (window.electron?.isElectron) {
+  // Select multiple files
+  const files = await window.electron.selectFiles({
+    filters: [{ name: 'Excel', extensions: ['xlsx'] }],
+    properties: ['openFile', 'multiSelections']
+  });
+
+  // Select folder
+  const folder = await window.electron.selectFolder();
+
+  // Save file
+  const path = await window.electron.saveFile({
+    defaultPath: 'result.xlsx',
+    filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+  });
+
+  // Get backend status
+  const status = await window.electron.getBackendStatus();
+  // { running: true, port: 5085, pid: 12345 }
+}
+```
+
+### Directory Structure
+
+```
+desktop/
+├── main.js              # Electron main process (260 lines)
+├── preload.js           # IPC bridge with context isolation
+├── package.json         # electron-builder config
+├── dev-start.sh         # Dev mode helper script
+├── build-all.sh         # Full build automation
+├── build-all.bat        # Windows build script
+├── README.md            # Desktop app documentation
+├── assets/
+│   ├── icon.png         # App icon (512x512)
+│   └── icon.ico         # Windows icon
+├── backend-build/       # Backend build output (ignored)
+├── dist/                # Electron build output (ignored)
+└── node_modules/        # Dependencies (ignored)
+```
+
+За детайли вижте [Desktop README](desktop/README.md).
 
 ## �📚 Additional Resources
 

@@ -1,140 +1,272 @@
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react'
-import { Button } from '../components/ui/button'
-import { uploadAndParse, extractBoq, type BoqData } from '../lib/api'
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
+import {
+  uploadKssFiles,
+  uploadUkazaniaFiles,
+  uploadPriceBaseFiles,
+  uploadTemplateFile,
+  getProject,
+} from '../lib/api';
 
-export default function UploadPage() {
-  const navigate = useNavigate()
-  const [file, setFile] = useState<File | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [progress, setProgress] = useState<string>('')
+interface UploadZoneProps {
+  title: string;
+  description: string;
+  accept: string;
+  maxFiles: number;
+  files: File[];
+  onFilesChange: (files: File[]) => void;
+  icon: string;
+}
+
+function UploadZone({ title, description, accept, maxFiles, files, onFilesChange, icon }: UploadZoneProps) {
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }, [])
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }, [])
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    
-    const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile) {
-      setFile(droppedFile)
-      setError(null)
-    }
-  }, [])
+    e.preventDefault();
+    setIsDragging(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    const newFiles = [...files, ...droppedFiles].slice(0, maxFiles);
+    onFilesChange(newFiles);
+  }, [files, maxFiles, onFilesChange]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      setFile(selectedFile)
-      setError(null)
-    }
-  }, [])
+    const selectedFiles = Array.from(e.target.files || []);
+    const newFiles = [...files, ...selectedFiles].slice(0, maxFiles);
+    onFilesChange(newFiles);
+  }, [files, maxFiles, onFilesChange]);
 
-  const handleUpload = async () => {
-    if (!file) return
+  const removeFile = (index: number) => {
+    const newFiles = files.filter((_, i) => i !== index);
+    onFilesChange(newFiles);
+  };
 
-    setIsUploading(true)
-    setError(null)
-    setProgress('Качване на файл...')
-
-    try {
-      // Step 1: Parse file
-      setProgress('Парсиране на документ...')
-      const parsedData = await uploadAndParse(file)
-      
-      // Step 2: Extract BoQ
-      setProgress('Извличане на данни с AI...')
-      const boqData: BoqData = await extractBoq(parsedData)
-      
-      // Step 3: Store in session and navigate
-      sessionStorage.setItem('boqData', JSON.stringify(boqData))
-      sessionStorage.setItem('sourceFile', file.name)
-      
-      setProgress('Готово!')
-      setTimeout(() => navigate('/review'), 500)
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестна грешка')
-      setIsUploading(false)
-      setProgress('')
-    }
-  }
+  const inputId = `file-input-${title.replace(/\s+/g, '-')}`;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Качване на документ</h2>
-        <p className="text-muted-foreground mt-2">
-          Поддържани формати: XLSX, DOCX, PDF, PNG/JPG (сканирани)
-        </p>
+    <div className="bg-card border rounded-lg p-4">
+      <div className="flex items-start gap-3 mb-3">
+        <span className="text-2xl">{icon}</span>
+        <div className="flex-1">
+          <h3 className="font-semibold">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Максимум: {maxFiles} {maxFiles === 1 ? 'файл' : 'файла'}
+          </p>
+        </div>
       </div>
 
-      {/* Drag & Drop Zone */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          border-2 border-dashed rounded-lg p-12 text-center transition-colors
+          border-2 border-dashed rounded-md p-6 text-center transition-colors
           ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-          ${file ? 'bg-muted/50' : ''}
+          ${files.length >= maxFiles ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
       >
-        {file ? (
-          <div className="space-y-4">
-            <CheckCircle className="w-16 h-16 mx-auto text-green-500" />
-            <div>
-              <p className="font-medium">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {(file.size / 1024 / 1024).toFixed(2)} MB
-              </p>
-            </div>
-            <Button variant="outline" onClick={() => setFile(null)}>
-              Смени файл
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <Upload className="w-16 h-16 mx-auto text-muted-foreground" />
-            <div>
-              <p className="text-lg font-medium">Пуснете файл тук</p>
-              <p className="text-sm text-muted-foreground">или</p>
-            </div>
+        {files.length < maxFiles ? (
+          <div className="space-y-2">
+            <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
+            <p className="text-sm">Пуснете файлове тук</p>
             <div>
               <input
                 type="file"
-                id="file-upload"
+                id={inputId}
                 className="hidden"
-                accept=".xlsx,.docx,.pdf,.png,.jpg,.jpeg"
+                accept={accept}
+                multiple={maxFiles > 1}
                 onChange={handleFileSelect}
+                disabled={files.length >= maxFiles}
               />
-              <label htmlFor="file-upload">
-                <Button asChild variant="secondary">
-                  <span>Изберете файл</span>
-                </Button>
+              <label htmlFor={inputId}>
+                <span className="text-xs text-primary hover:underline cursor-pointer">
+                  или изберете файлове
+                </span>
               </label>
             </div>
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Достигнат максимален брой файлове</p>
         )}
+      </div>
+
+      {/* File List */}
+      {files.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {files.map((file, index) => (
+            <div
+              key={index}
+              className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-md text-sm"
+            >
+              <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="flex-1 truncate">{file.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {(file.size / 1024 / 1024).toFixed(2)} MB
+              </span>
+              <button
+                onClick={() => removeFile(index)}
+                className="text-destructive hover:bg-destructive/10 p-1 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function UploadPage() {
+  const navigate = useNavigate();
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
+
+  // File states
+  const [kssFiles, setKssFiles] = useState<File[]>([]);
+  const [ukazaniaFiles, setUkazaniaFiles] = useState<File[]>([]);
+  const [priceBaseFiles, setPriceBaseFiles] = useState<File[]>([]);
+  const [templateFile, setTemplateFile] = useState<File[]>([]);
+
+  useEffect(() => {
+    const storedProjectId = sessionStorage.getItem('currentProjectId');
+    if (!storedProjectId) {
+      navigate('/');
+    } else {
+      setProjectId(storedProjectId);
+    }
+  }, [navigate]);
+
+  const handleUploadAll = async () => {
+    if (!projectId) return;
+
+    // Validation
+    if (kssFiles.length === 0) {
+      setError('Моля качете поне 1 КСС файл');
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      // Upload КСС files
+      if (kssFiles.length > 0) {
+        setUploadProgress('Качване на КСС файлове...');
+        await uploadKssFiles(projectId, kssFiles);
+      }
+
+      // Upload Указания files
+      if (ukazaniaFiles.length > 0) {
+        setUploadProgress('Качване на Указания...');
+        await uploadUkazaniaFiles(projectId, ukazaniaFiles);
+      }
+
+      // Upload Price Base files
+      if (priceBaseFiles.length > 0) {
+        setUploadProgress('Качване на Ценова база...');
+        await uploadPriceBaseFiles(projectId, priceBaseFiles);
+      }
+
+      // Upload Template file
+      if (templateFile.length > 0) {
+        setUploadProgress('Качване на шаблон...');
+        await uploadTemplateFile(projectId, templateFile[0]);
+      }
+
+      setUploadProgress('Готово!');
+      
+      // Fetch updated project info
+      await getProject(projectId);
+
+      // Navigate to match page
+      setTimeout(() => navigate('/match'), 500);
+    } catch (err) {
+      console.error('Upload failed:', err);
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Грешка при качване на файлове');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress('');
+    }
+  };
+
+  const totalFiles = kssFiles.length + ukazaniaFiles.length + priceBaseFiles.length + templateFile.length;
+  const canUpload = kssFiles.length > 0 && !isUploading;
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">Качване на Файлове</h1>
+        <p className="text-muted-foreground">
+          Качете всички необходими файлове за обработка. КСС файловете са задължителни.
+        </p>
+      </div>
+
+      {/* Upload Zones Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <UploadZone
+          title="КСС Файлове"
+          description="Excel файлове (.xlsx) с количествени сметки"
+          accept=".xlsx"
+          maxFiles={25}
+          files={kssFiles}
+          onFilesChange={setKssFiles}
+          icon="📊"
+        />
+
+        <UploadZone
+          title="Указания"
+          description="Word файлове (.docx) с прогнози по етапи"
+          accept=".docx"
+          maxFiles={2}
+          files={ukazaniaFiles}
+          onFilesChange={setUkazaniaFiles}
+          icon="📝"
+        />
+
+        <UploadZone
+          title="Ценова База"
+          description="Excel файлове (.xlsx) с единични цени"
+          accept=".xlsx"
+          maxFiles={2}
+          files={priceBaseFiles}
+          onFilesChange={setPriceBaseFiles}
+          icon="💰"
+        />
+
+        <UploadZone
+          title="Шаблон (опционално)"
+          description="Excel файл (.xlsx) шаблон за експорт"
+          accept=".xlsx"
+          maxFiles={1}
+          files={templateFile}
+          onFilesChange={setTemplateFile}
+          icon="📄"
+        />
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3 mb-6">
           <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-medium text-destructive">Грешка при обработка</p>
+            <p className="font-medium text-destructive">Грешка</p>
             <p className="text-sm text-destructive/80 mt-1">{error}</p>
           </div>
         </div>
@@ -142,40 +274,81 @@ export default function UploadPage() {
 
       {/* Progress Display */}
       {isUploading && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center gap-3">
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center gap-3 mb-6">
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
-          <p className="text-sm font-medium">{progress}</p>
+          <p className="text-sm font-medium">{uploadProgress}</p>
         </div>
       )}
 
-      {/* Action Button */}
-      <div className="flex justify-end">
-        <Button
-          size="lg"
-          onClick={handleUpload}
-          disabled={!file || isUploading}
-        >
-          <FileText className="w-4 h-4 mr-2" />
-          Обработи документ
-        </Button>
+      {/* Summary Card */}
+      <div className="bg-muted/50 rounded-lg p-4 mb-6">
+        <h3 className="font-medium mb-2">Резюме на файловете</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p className="text-muted-foreground">КСС файлове</p>
+            <p className="font-semibold">{kssFiles.length} / 25</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Указания</p>
+            <p className="font-semibold">{ukazaniaFiles.length} / 2</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Ценова база</p>
+            <p className="font-semibold">{priceBaseFiles.length} / 2</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Шаблон</p>
+            <p className="font-semibold">{templateFile.length} / 1</p>
+          </div>
+        </div>
+        <div className="mt-3 pt-3 border-t">
+          <p className="text-sm">
+            <span className="font-medium">Общо файлове:</span> {totalFiles}
+          </p>
+        </div>
       </div>
 
-      {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-        <div className="bg-muted rounded-lg p-4">
-          <h3 className="font-medium mb-2">📊 Автоматично извличане</h3>
-          <p className="text-sm text-muted-foreground">
-            AI системата автоматично разпознава КСС структури в XLSX, DOCX и PDF файлове.
-          </p>
-        </div>
-        <div className="bg-muted rounded-lg p-4">
-          <h3 className="font-medium mb-2">🔒 Локална обработка</h3>
-          <p className="text-sm text-muted-foreground">
-            Всички данни остават на вашата машина. Никакви външни API извиквания.
-          </p>
-        </div>
+      {/* Action Buttons */}
+      <div className="flex justify-between">
+        <button
+          onClick={() => navigate('/')}
+          className="px-4 py-2 border rounded-md hover:bg-muted transition-colors"
+          disabled={isUploading}
+        >
+          Назад
+        </button>
+
+        <button
+          onClick={handleUploadAll}
+          disabled={!canUpload}
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+        >
+          {isUploading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              Качване...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-4 h-4" />
+              Качи файлове и продължи
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Info Section */}
+      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="font-medium text-blue-900 mb-2">ℹ️ Важна информация</h3>
+        <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+          <li>КСС файловете трябва да съдържат колони: Наименование, Мярка, Количество, Етап</li>
+          <li>Указанията трябва да съдържат прогнозни стойности по етапи</li>
+          <li>Ценовата база трябва да съдържа: Наименование, Мярка, Единична цена</li>
+          <li>Всички файлове се парсват автоматично при качване</li>
+          <li>След качването ще преминете към преглед на съпоставянията</li>
+        </ul>
       </div>
     </div>
-  )
+  );
 }
 

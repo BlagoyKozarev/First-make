@@ -1,252 +1,178 @@
-// API client for FirstMake Agent
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const AI_GATEWAY_BASE = import.meta.env.VITE_AI_GATEWAY_URL || 'http://localhost:5001';
+// V2.0 API Client for Multi-file КСС Processing
+import axios from 'axios';
 
-export interface BoqItem {
-  stage: string;
-  name: string;
-  unit: string;
-  quantity: number;
-  evidence?: {
-    sourceFile: string;
-    page?: number;
-    cell?: string;
-  };
+// API Base URL (proxied through Vite dev server)
+const api = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Types matching backend models
+export interface ProjectMetadata {
+  objectName: string;
+  employee: string;
+  date: string;
 }
 
-export interface BoqData {
-  projectName: string;
-  projectCode?: string;
-  stages: {
-    code: string;
+export interface ProjectSession {
+  projectId: string;
+  metadata: ProjectMetadata;
+  kssFilesCount: number;
+  ukazaniaFilesCount: number;
+  priceBaseFilesCount: number;
+  hasTemplate: boolean;
+  hasMatchingResults: boolean;
+  hasOptimizationResults: boolean;
+  createdAt: string;
+}
+
+export interface MatchResult {
+  isMatched: boolean;
+  priceEntry?: {
     name: string;
-    forecast: number;
-  }[];
-  items: BoqItem[];
-}
-
-export interface MatchedItem {
-  boqItemName: string;
-  candidates: {
-    catalogueItemName: string;
-    basePrice: number;
     unit: string;
+    price: number;
+  };
+  score?: number;
+}
+
+export interface UnifiedCandidate {
+  unifiedKey: string;
+  itemName: string;
+  itemUnit: string;
+  occurrenceCount: number;
+  topCandidates: Array<{
+    name: string;
+    unit: string;
+    price: number;
     score: number;
-  }[];
+  }>;
 }
 
-export interface OptimizationRequest {
-  boq: BoqData;
-  priceBase: any[];
-  matches: Record<string, string>;
-  lambda?: number;
-  coeffBounds?: { min: number; max: number };
+export interface MatchStatistics {
+  totalItems: number;
+  matchedItems: number;
+  unmatchedItems: number;
+  uniquePositions: number;
+  averageScore: number;
 }
 
-export interface OptimizationResult {
-  coefficients: Record<string, number>;
-  stageSummaries: {
-    stageCode: string;
-    totalCost: number;
+export interface IterationResult {
+  iterationId: string;
+  timestamp: string;
+  overallGap: number;
+  totalProposed: number;
+  totalForecast: number;
+  stageBreakdown: Array<{
+    stage: string;
+    gap: number;
+    proposed: number;
     forecast: number;
-    deviation: number;
-  }[];
-  objectiveValue: number;
-  solverStatus: string;
+  }>;
+  fileBreakdown: Array<{
+    fileName: string;
+    totalProposed: number;
+    stageGaps: Record<string, number>;
+  }>;
+  solverTimeMs: number;
 }
 
-export interface OperationObservation {
-  operationType: string;
-  success: boolean;
-  durationMs: number;
-  timestamp?: string;
-  sourceFileName?: string;
-  inputHash?: string;
-  errorMessage?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata?: Record<string, any>;
-}
+// Project Management
+export const createProject = async (metadata: ProjectMetadata): Promise<ProjectSession> => {
+  const response = await api.post<ProjectSession>('/projects', metadata);
+  return response.data;
+};
 
-export interface ObservationMetrics {
-  totalOperations: number;
-  successfulOperations: number;
-  failedOperations: number;
-  duplicateOperations: number;
-  averageDurationMs: number;
-  operationsByType: Record<string, number>;
-  averageMatchScore?: number;
-  averageMatchCandidates?: number;
-  averageOptimizationObjective?: number;
-  optimizationSuccessRate?: number;
-  since: string;
-  until: string;
-}
+export const getProject = async (projectId: string): Promise<ProjectSession> => {
+  const response = await api.get<ProjectSession>(`/projects/${projectId}`);
+  return response.data;
+};
 
-// File upload and parsing
-export async function uploadAndParse(file: File): Promise<any> {
+export const deleteProject = async (projectId: string): Promise<void> => {
+  await api.delete(`/projects/${projectId}`);
+};
+
+// File Upload
+export const uploadKssFiles = async (projectId: string, files: File[]): Promise<void> => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+  await api.post(`/projects/${projectId}/files/kss`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const uploadUkazaniaFiles = async (projectId: string, files: File[]): Promise<void> => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+  await api.post(`/projects/${projectId}/files/ukazania`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const uploadPriceBaseFiles = async (projectId: string, files: File[]): Promise<void> => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+  await api.post(`/projects/${projectId}/files/pricebase`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const uploadTemplateFile = async (projectId: string, file: File): Promise<void> => {
   const formData = new FormData();
   formData.append('file', file);
-
-  // Try deterministic parsers first
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  
-  if (ext === 'xlsx') {
-    const response = await fetch(`${AI_GATEWAY_BASE}/xlsx/parse`, {
-      method: 'POST',
-      body: formData,
-    });
-    return response.json();
-  } else if (ext === 'docx') {
-    const response = await fetch(`${AI_GATEWAY_BASE}/docx/parse`, {
-      method: 'POST',
-      body: formData,
-    });
-    return response.json();
-  } else if (ext === 'pdf') {
-    const response = await fetch(`${AI_GATEWAY_BASE}/pdf/layout`, {
-      method: 'POST',
-      body: formData,
-    });
-    return response.json();
-  }
-  
-  throw new Error(`Unsupported file type: ${ext}`);
-}
-
-// Extract BoQ from parsed data using LLM
-export async function extractBoq(parsedData: any): Promise<BoqData> {
-  const response = await fetch(`${API_BASE}/extract`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(parsedData),
+  await api.post(`/projects/${projectId}/files/template`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
-  
-  if (!response.ok) {
-    throw new Error(`Extraction failed: ${response.statusText}`);
-  }
-  
-  return response.json();
-}
+};
 
-// Fuzzy match BoQ items to price catalogue
-export async function matchItems(boq: BoqData, priceBase: any[]): Promise<MatchedItem[]> {
-  const response = await fetch(`${API_BASE}/match`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ boq, priceBase }),
+// Matching
+export const triggerMatching = async (projectId: string): Promise<MatchStatistics> => {
+  const response = await api.post<MatchStatistics>(`/projects/${projectId}/match`);
+  return response.data;
+};
+
+export const getUnmatchedCandidates = async (projectId: string): Promise<UnifiedCandidate[]> => {
+  const response = await api.get<UnifiedCandidate[]>(`/projects/${projectId}/match/candidates`);
+  return response.data;
+};
+
+export const overrideMatch = async (
+  projectId: string,
+  unifiedKey: string,
+  priceEntryName: string
+): Promise<void> => {
+  await api.post(`/projects/${projectId}/match/override`, {
+    unifiedKey,
+    priceEntryName,
   });
-  
-  if (!response.ok) {
-    throw new Error(`Matching failed: ${response.statusText}`);
-  }
-  
-  return response.json();
-}
+};
 
-// Run LP optimization
-export async function optimize(request: OptimizationRequest): Promise<OptimizationResult> {
-  const response = await fetch(`${API_BASE}/optimize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
+// Optimization
+export const runOptimization = async (projectId: string): Promise<IterationResult> => {
+  const response = await api.post<IterationResult>(`/projects/${projectId}/optimize`);
+  return response.data;
+};
+
+export const getLatestIteration = async (projectId: string): Promise<IterationResult> => {
+  const response = await api.get<IterationResult>(`/projects/${projectId}/iterations/latest`);
+  return response.data;
+};
+
+// Export
+export const exportResults = async (projectId: string): Promise<Blob> => {
+  const response = await api.get(`/projects/${projectId}/export`, {
+    responseType: 'blob',
   });
-  
-  if (!response.ok) {
-    throw new Error(`Optimization failed: ${response.statusText}`);
-  }
-  
-  return response.json();
-}
+  return response.data;
+};
 
-// Export results to XLSX or ZIP
-export async function exportResults(
-  result: OptimizationResult, 
-  boq: BoqData,
-  projectName?: string,
-  splitByStage: boolean = false
-): Promise<Blob> {
-  const response = await fetch(`${API_BASE}/export`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      result,
-      boq,
-      projectName: projectName || boq.projectName,
-      splitByStage
-    }),
+export const previewExportFile = async (projectId: string, fileId: string): Promise<Blob> => {
+  const response = await api.get(`/projects/${projectId}/export/preview/${fileId}`, {
+    responseType: 'blob',
   });
-  
-  if (!response.ok) {
-    throw new Error(`Export failed: ${response.statusText}`);
-  }
-  
-  return response.blob();
-}
+  return response.data;
+};
 
-// Log operation observation
-export async function logObservation(observation: OperationObservation): Promise<{
-  observationId: string;
-  isDuplicate: boolean;
-  originalSessionId?: string;
-}> {
-  const response = await fetch(`${API_BASE}/observations`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(observation),
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to log observation: ${response.statusText}`);
-  }
-  
-  return response.json();
-}
-
-// Get metrics
-export async function getMetrics(since?: Date): Promise<ObservationMetrics> {
-  const url = new URL(`${API_BASE}/observations/metrics`);
-  if (since) {
-    url.searchParams.set('since', since.toISOString());
-  }
-  
-  const response = await fetch(url.toString());
-  
-  if (!response.ok) {
-    throw new Error(`Failed to get metrics: ${response.statusText}`);
-  }
-  
-  return response.json();
-}
-
-// Get recent observations
-export async function getRecentObservations(limit: number = 100): Promise<OperationObservation[]> {
-  const url = new URL(`${API_BASE}/observations/recent`);
-  url.searchParams.set('limit', limit.toString());
-  
-  const response = await fetch(url.toString());
-  
-  if (!response.ok) {
-    throw new Error(`Failed to get observations: ${response.statusText}`);
-  }
-  
-  return response.json();
-}
-
-// Health checks
-export async function checkApiHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/healthz`);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-export async function checkAiGatewayHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${AI_GATEWAY_BASE}/healthz`);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
+export default api;
