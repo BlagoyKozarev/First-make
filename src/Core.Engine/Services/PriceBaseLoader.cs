@@ -117,7 +117,10 @@ public class PriceBaseLoader
             Console.WriteLine($"Warning: Found {duplicates.Count} duplicate entries across price base files:");
             foreach (var dup in duplicates.Take(5))
             {
-                Console.WriteLine($"  - {dup.Key.Name} ({dup.Key.Unit}): {dup.Count()} occurrences");
+                 var parts = dup.Key.Split(new[] { "||" }, StringSplitOptions.None);
+                 var name = parts.Length > 0 ? parts[0] : dup.Key;
+                 var unit = parts.Length > 1 ? parts[1] : "";
+                 Console.WriteLine($"  - {name} ({unit}): {dup.Count()} occurrences");
             }
         }
 
