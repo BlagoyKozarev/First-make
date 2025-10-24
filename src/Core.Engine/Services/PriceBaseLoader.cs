@@ -102,14 +102,13 @@ public class PriceBaseLoader
         
         // Deduplicate entries by Name + Unit (case-insensitive, trimmed)
         var deduped = allEntries
-            .GroupBy(e => new { Name = (e.Name ?? string.Empty).Trim(), Unit = (e.Unit ?? string.Empty).Trim() },
-                (key, group) => group.First())
+            .GroupBy(e => ((e.Name ?? string.Empty).Trim() + "||" + (e.Unit ?? string.Empty).Trim()), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
             .ToList();
 
         // Check for duplicates and warn
         var duplicates = allEntries
-            .GroupBy(e => new { Name = (e.Name ?? string.Empty).Trim(), Unit = (e.Unit ?? string.Empty).Trim() },
-                StringComparer.OrdinalIgnoreCase)
+            .GroupBy(e => ((e.Name ?? string.Empty).Trim() + "||" + (e.Unit ?? string.Empty).Trim()), StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
             .ToList();
 
