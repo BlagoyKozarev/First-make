@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # API Service
   api:
-    image: ghcr.io/blagoy kozarev/first-make-api:latest
+    image: ghcr.io/gitraicommerce/firstmake-api:${VERSION:-latest}
     container_name: firstmake-api
     restart: unless-stopped
     ports:
@@ -31,7 +31,7 @@ services:
 
   # AI Gateway Service
   aigateway:
-    image: ghcr.io/blagoy kozarev/first-make-aigateway:latest
+    image: ghcr.io/gitraicommerce/firstmake-aigateway:${VERSION:-latest}
     container_name: firstmake-aigateway
     restart: unless-stopped
     ports:
@@ -39,9 +39,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
+      - BgGpt__Username=${BGGPT_USERNAME}
+      - BgGpt__Password=${BGGPT_PASSWORD}
       - BgGpt__ApiKey=${BGGPT_API_KEY}
-      - BgGpt__BaseUrl=https://api.raicommerce.net/v1
-      - BgGpt__Model=gpt-4o-mini
+      - BgGpt__ApiUrl=http://api.raicommerce.net/v1/completions
+      - BgGpt__Model=bg-gpt-7b
       - Tesseract__DataPath=/usr/share/tesseract-ocr/5/tessdata
       - Tesseract__Languages=bul+eng
     volumes:
@@ -62,7 +64,7 @@ services:
 
   # UI Service (Nginx)
   ui:
-    image: ghcr.io/blagoyko zarev/first-make-ui:latest
+    image: ghcr.io/gitraicommerce/firstmake-ui:${VERSION:-latest}
     container_name: firstmake-ui
     restart: unless-stopped
     ports:

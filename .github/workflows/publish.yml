@@ -1,0 +1,193 @@
+name: Build and Publish Docker Images
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag (e.g., v1.0.1)'
+        required: true
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version_short=${VERSION#v}" >> $GITHUB_OUTPUT
+      
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: api
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}
+            ${{ env.IMAGE_PREFIX }}/firstmake-api:latest
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-api:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-api:buildcache,mode=max
+      
+      - name: Build and push AI Gateway image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: aigateway
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}
+            ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:latest
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-aigateway:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-aigateway:buildcache,mode=max
+      
+      - name: Build and push UI image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/UI
+          file: ./src/UI/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}
+            ${{ env.IMAGE_PREFIX }}/firstmake-ui:latest
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-ui:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-ui:buildcache,mode=max
+      
+      - name: Generate deployment manifest
+        run: |
+          cat > deployment-manifest.txt <<EOF
+          FirstMake Agent - Deployment Manifest
+          =====================================
+          Version: ${{ steps.version.outputs.version }}
+          Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Git Commit: ${{ github.sha }}
+          Git Ref: ${{ github.ref }}
+          
+          Docker Images Published:
+          ------------------------
+          API:        ${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}
+          AI Gateway: ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}
+          UI:         ${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}
+          
+          Pull Commands:
+          --------------
+          docker pull ${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}
+          docker pull ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}
+          docker pull ${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}
+          
+          Deployment:
+          -----------
+          1. Update .env file with new version tag
+          2. Run: docker-compose -f docker-compose.prod.yml pull
+          3. Run: docker-compose -f docker-compose.prod.yml up -d
+          4. Verify: curl http://localhost/health
+          
+          Security Notes:
+          ---------------
+          - Ensure BGGPT_* environment variables are set
+          - SSL certificates configured in nginx
+          - Firewall rules applied
+          - Database backup completed before deployment
+          EOF
+          cat deployment-manifest.txt
+      
+      - name: Upload deployment manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-manifest-${{ steps.version.outputs.version }}
+          path: deployment-manifest.txt
+          retention-days: 90
+      
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          name: FirstMake Agent ${{ steps.version.outputs.version }}
+          body: |
+            ## FirstMake Agent ${{ steps.version.outputs.version }}
+            
+            ### Docker Images
+            
+            ```bash
+            docker pull ${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}
+            docker pull ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}
+            docker pull ${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}
+            ```
+            
+            ### Quick Start
+            
+            ```bash
+            # Download deployment files
+            wget https://raw.githubusercontent.com/${{ github.repository }}/main/deployment/docker-compose.prod.yml
+            wget https://raw.githubusercontent.com/${{ github.repository }}/main/deployment/.env.example
+            
+            # Configure environment
+            cp .env.example .env
+            nano .env  # Set BGGPT_* credentials
+            
+            # Deploy
+            docker-compose -f docker-compose.prod.yml up -d
+            ```
+            
+            ### What's Changed
+            
+            See [RELEASE_NOTES.md](https://github.com/${{ github.repository }}/blob/main/RELEASE_NOTES.md) for full changelog.
+            
+            ### Security
+            
+            See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/docs/SECURITY.md) for security guidelines.
+          files: deployment-manifest.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Summary
+        run: |
+          echo "## ✅ Build and Publish Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Images" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download deployment manifest from artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "2. Follow deployment instructions in manifest" >> $GITHUB_STEP_SUMMARY
+          echo "3. Verify deployment with health checks" >> $GITHUB_STEP_SUMMARY
