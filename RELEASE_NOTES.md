@@ -1,12 +1,52 @@
 # FirstMake Agent v1.0.0 - Initial Release
 
-**Release Date:** October 20, 2025
+**Release Date:** October 28, 2025
 
 ## 🎉 Overview
 
 FirstMake Agent е local-first приложение за автоматизирано обработване на Количествено-стойностни сметки (КСС) и оптимизация на строителни оферти за българската строителна индустрия.
 
-## ✨ Features
+## ✨ Новости в тази версия
+
+### Основни подобрения (v1.0.0)
+
+#### Backend
+- ✅ **Parser Fixes** - Подобрено числено парсване с поддръжка на EU/US формати
+  - Обработка на десетични сепаратори (запетая/точка)
+  - Обработка на хилядни разделители
+  - По-надеждно разпознаване на валути
+  
+- ✅ **Price Base Deduplication** - Автоматично премахване на дупликати
+  - Дедупликация по ключ (име + мярка)
+  - Warning logs при откриване на дупликати
+  - По-бързо зареждане на големи ценови бази
+
+#### Frontend
+- ✅ **Fast Refresh Fix** - Решен lint проблем с Fast Refresh
+  - Рефакториране на споделени константи
+  - Подобрена developer experience
+  - По-бърз hot reload при разработка
+
+#### CI/CD
+- ✅ **GitHub Actions Workflow** - Автоматично тестване и build
+  - Backend build и тестове (.NET)
+  - Frontend lint и build (Vite)
+  - Автоматично при push и PR
+
+#### Testing
+- ✅ **Unit Tests** - 31 passed, 1 skipped (от 32 total)
+  - Core.Engine тестове зелени
+  - FuzzyMatcher coverage
+  - LP Optimizer validation
+  - Normalizers тестове
+
+#### Security
+- ✅ **Security Sweep** - Проверка за изтекли секрети
+  - Git history scan за credentials
+  - Placeholder-и в deployment files
+  - Документация за secret management
+
+## ✨ Features (Core Platform)
 
 ### Core Functionality
 - ✅ **Multi-format File Parsing** - XLSX, DOCX, PDF support with OCR
@@ -224,16 +264,58 @@ Open browser: http://localhost:5174
 2. **LLM Extraction** - May require manual review for complex documents
 3. **Single-User** - No multi-user authentication (by design - local-first)
 4. **Memory** - Large files (>50MB) not supported
+5. **TypeScript/ESLint Warning** - Installed TS 5.9.3 vs supported <5.4.0 (functionally works)
 
-## 🔮 Future Enhancements
+## 🔮 Roadmap (Post v1.0.0)
 
-Potential features for future releases:
+### Critical (Next Steps)
+- [ ] Deep secret scan с truffleHog/detect-secrets
+- [ ] CI publish workflow за Docker images → GHCR
+- [ ] Production docker-compose validation
+- [ ] GitHub Release със artifacts
+
+### High Priority
+- [ ] TypeScript/ESLint compatibility fix
+- [ ] Frontend component tests (vitest + RTL)
+- [ ] UI компонентизация (CandidateCard, TopCandidatesList)
+- [ ] Accessibility improvements
+
+### Medium Priority
+- [ ] Integration smoke tests
+- [ ] DevContainer/Codespaces подобрения
+- [ ] Performance tuning за LP операции
+- [ ] Code coverage увеличаване
+
+### Future Enhancements
 - Additional file formats (ODS, CSV)
-- Batch processing for multiple files
+- Batch processing за multiple files
 - Export template customization
-- Advanced metrics and analytics
+- Advanced metrics dashboard
 - Multi-language UI support
-- Integration with external accounting systems
+- Integration със външни accounting systems
+
+## 📦 Installation & Upgrade
+
+### Fresh Installation
+
+```bash
+git clone https://github.com/GitRaicommerce/First-make.git
+cd First-make
+dotnet restore
+cd src/UI && npm install
+```
+
+### Upgrade от previous version
+
+*Първа версия - няма upgrade path*
+
+## 🔄 Breaking Changes
+
+*Няма - първа версия*
+
+## 📝 Deprecations
+
+*Няма*
 
 ## 🙏 Acknowledgments
 

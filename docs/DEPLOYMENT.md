@@ -66,6 +66,59 @@ sudo apt-get install -y tesseract-ocr tesseract-ocr-bul tesseract-ocr-eng
 tesseract --version
 ```
 
+## Production Deployment Checklist
+
+Използвайте този checklist преди production deployment:
+
+### Pre-Deployment
+- [ ] Code review завършен
+- [ ] All tests passed (dotnet test)
+- [ ] Security audit изпълнен (secret scan)
+- [ ] Dependencies актуализирани
+- [ ] Environment variables подготвени
+- [ ] SSL certificates готови
+- [ ] Backup strategy дефинирана
+
+### Build & Package
+- [ ] Backend built: `dotnet publish -c Release`
+- [ ] Frontend built: `npm run build`
+- [ ] Docker images built (ако се използват)
+- [ ] Version tag създаден
+
+### Configuration
+- [ ] Production appsettings.json files подготвени
+- [ ] Environment variables настроени
+- [ ] Database connection string валиден
+- [ ] BG GPT API key конфигуриран
+- [ ] File paths и permissions проверени
+
+### Deployment
+- [ ] Systemd services инсталирани
+- [ ] Nginx reverse proxy конфигуриран
+- [ ] SSL/TLS enableнат
+- [ ] Firewall rules настроени
+- [ ] Health checks работят
+
+### Post-Deployment
+- [ ] Services started и running
+- [ ] Logs проверени за errors
+- [ ] Database migrations приложени
+- [ ] Backup schedule активиран
+- [ ] Monitoring setup завършен
+
+### Verification
+- [ ] API healthcheck отговаря: `/api/healthz`
+- [ ] AI Gateway healthcheck отговаря: `/ai/healthz`
+- [ ] Frontend зарежда правилно
+- [ ] File upload работи
+- [ ] Database queries успешни
+- [ ] SSL certificate валиден
+
+### Documentation
+- [ ] Deployment notes актуализирани
+- [ ] Team нотифициран
+- [ ] Rollback plan подготвен
+
 ## Database Configuration
 
 ### SQLite Setup
@@ -635,4 +688,47 @@ df -h
 
 ---
 
-**Last Updated:** 2025-01-13
+**Last Updated:** October 28, 2025
+
+**Version:** 1.0.0
+
+## Quick Reference
+
+### Essential Commands
+
+```bash
+# Check service status
+sudo systemctl status firstmake-api firstmake-ai
+
+# View logs
+sudo journalctl -u firstmake-api -f
+
+# Restart services
+sudo systemctl restart firstmake-api firstmake-ai
+
+# Test endpoints
+curl http://localhost:5000/healthz
+curl http://localhost:5001/healthz
+
+# Database backup
+sqlite3 /var/lib/firstmake/data/firstmake.db ".backup /tmp/backup.db"
+```
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| Service won't start | Check logs: `journalctl -u firstmake-api` |
+| 502 Bad Gateway | Verify backend services running |
+| File upload fails | Check `client_max_body_size` in Nginx |
+| Database locked | Restart API service |
+| High memory | Configure memory limits in systemd |
+
+### Support
+
+- GitHub Issues: https://github.com/GitRaicommerce/First-make/issues
+- Documentation: https://github.com/GitRaicommerce/First-make/tree/main/docs
+
+---
+
+**Production Deployment Guide completed. Review checklist before deployment.**
