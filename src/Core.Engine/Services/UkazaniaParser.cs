@@ -150,8 +150,19 @@ except Exception as e:
                 var stageCode = $"Етап {stageNumber}";
                 var amountText = stageMatch.Groups[3].Value
                     .Replace(" ", "")
-                    .Replace(",", ".")
                     .Replace("\u00A0", ""); // Non-breaking space
+
+                // Normalize numeric format:
+                // If both comma and dot are present assume comma is thousands separator and dot is decimal -> remove commas
+                // If only comma present assume it's decimal separator -> replace with dot
+                if (amountText.Contains(",") && amountText.Contains("."))
+                {
+                    amountText = amountText.Replace(",", "");
+                }
+                else if (amountText.Contains(",") && !amountText.Contains("."))
+                {
+                    amountText = amountText.Replace(",", ".");
+                }
                 
                 if (decimal.TryParse(amountText,
                     System.Globalization.NumberStyles.Any,
@@ -179,8 +190,16 @@ except Exception as e:
             {
                 var amountText = totalMatch.Groups[3].Value
                     .Replace(" ", "")
-                    .Replace(",", ".")
                     .Replace("\u00A0", "");
+
+                if (amountText.Contains(",") && amountText.Contains("."))
+                {
+                    amountText = amountText.Replace(",", "");
+                }
+                else if (amountText.Contains(",") && !amountText.Contains("."))
+                {
+                    amountText = amountText.Replace(",", ".");
+                }
                 
                 if (decimal.TryParse(amountText,
                     System.Globalization.NumberStyles.Any,

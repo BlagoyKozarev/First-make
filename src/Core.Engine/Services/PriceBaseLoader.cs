@@ -100,21 +100,30 @@ public class PriceBaseLoader
             }
         }
         
+        // Deduplicate entries by Name + Unit (case-insensitive, trimmed)
+        var deduped = allEntries
+            .GroupBy(e => ((e.Name ?? string.Empty).Trim() + "||" + (e.Unit ?? string.Empty).Trim()), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+
         // Check for duplicates and warn
         var duplicates = allEntries
-            .GroupBy(e => new { e.Name, e.Unit })
+            .GroupBy(e => ((e.Name ?? string.Empty).Trim() + "||" + (e.Unit ?? string.Empty).Trim()), StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
             .ToList();
-        
+
         if (duplicates.Any())
         {
             Console.WriteLine($"Warning: Found {duplicates.Count} duplicate entries across price base files:");
             foreach (var dup in duplicates.Take(5))
             {
-                Console.WriteLine($"  - {dup.Key.Name} ({dup.Key.Unit}): {dup.Count()} occurrences");
+                 var parts = dup.Key.Split(new[] { "||" }, StringSplitOptions.None);
+                 var name = parts.Length > 0 ? parts[0] : dup.Key;
+                 var unit = parts.Length > 1 ? parts[1] : "";
+                 Console.WriteLine($"  - {name} ({unit}): {dup.Count()} occurrences");
             }
         }
-        
-        return allEntries;
+
+        return deduped;
     }
 }
