@@ -1,4 +1,99 @@
-# FirstMake Agent v1.0.0 - Initial Release
+# FirstMake Agent - Release Notes
+
+---
+
+## v1.0.1 - Security & Quality Update
+
+**Release Date:** October 28, 2025
+
+### 🔐 Security Fixes
+
+- **CRITICAL:** Sanitized leaked API credentials in `src/AiGateway/appsettings.json`
+  - Removed hardcoded BgGpt credentials from repository
+  - Created `appsettings.template.json` with environment variable placeholders
+  - Updated `.gitignore` to exclude sensitive configuration files
+  - **ACTION REQUIRED:** Rotate old credentials (see SECURITY.md)
+
+- **Added comprehensive security documentation** (`docs/SECURITY.md`)
+  - Secret scan results and remediation guide
+  - GitHub Actions secrets setup instructions
+  - Pre-commit hooks for ongoing secret detection
+  - Incident response playbook
+
+### 🚀 CI/CD Improvements
+
+- **GitHub Actions publish workflow** (`.github/workflows/publish.yml`)
+  - Automated Docker image builds for API, AI Gateway, and UI
+  - Push to GitHub Container Registry (GHCR) on version tags
+  - Automatic GitHub Release creation with deployment manifest
+  - BuildKit layer caching for faster builds
+
+- **Production deployment updates**
+  - Updated `docker-compose.prod.yml` with GHCR image paths
+  - Added `VERSION` variable for version control
+  - Included all required BgGpt environment variables
+  - Created `deployment/validate.sh` pre-deployment validation script
+
+### 🔧 Quality Fixes
+
+- **Resolved TypeScript/ESLint compatibility warning**
+  - Updated `@typescript-eslint/eslint-plugin`: 6.14.0 → 7.18.0
+  - Updated `@typescript-eslint/parser`: 6.14.0 → 7.18.0
+  - Updated `eslint`: 8.55.0 → 8.57.0
+  - Pinned TypeScript to ~5.5.4 (officially supported version)
+  - Build and lint now pass with zero warnings
+
+### 📦 Docker Images
+
+Available on GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/gitraicommerce/firstmake-api:v1.0.1
+docker pull ghcr.io/gitraicommerce/firstmake-aigateway:v1.0.1
+docker pull ghcr.io/gitraicommerce/firstmake-ui:v1.0.1
+```
+
+### 📝 Migration Notes
+
+**From v1.0.0 to v1.0.1:**
+
+1. **URGENT - Rotate API Credentials:**
+   ```bash
+   # Contact api.raicommerce.net administrator
+   # Request new credentials for Username, Password, ApiKey
+   ```
+
+2. **Update deployment configuration:**
+   ```bash
+   cd deployment
+   cp .env.example .env
+   # Edit .env and set:
+   # - BGGPT_USERNAME
+   # - BGGPT_PASSWORD
+   # - BGGPT_API_KEY
+   ```
+
+3. **Validate deployment:**
+   ```bash
+   ./deployment/validate.sh
+   ```
+
+4. **Pull new images:**
+   ```bash
+   docker-compose -f docker-compose.prod.yml pull
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
+### 📊 Commits
+
+- `216563f` - security: create SECURITY.md, sanitize appsettings.json, update .gitignore
+- `7896bc6` - ci: add Docker publish workflow and update production deployment
+- `bb82bcf` - chore: add pre-deployment validation script
+- `5100455` - fix: resolve TypeScript/ESLint version compatibility warning
+
+---
+
+## v1.0.0 - Initial Release
 
 **Release Date:** October 28, 2025
 
