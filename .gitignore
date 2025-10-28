@@ -29,3 +29,12 @@ dist/
 *.temp
 uploads/
 exports/
+
+## Secrets & Sensitive Config
+appsettings.json
+appsettings.*.json
+!appsettings.template.json
+!appsettings.Development.json
+*.env
+.env.*
+!.env.example
