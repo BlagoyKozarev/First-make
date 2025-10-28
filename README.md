@@ -1,5 +1,7 @@
 # FirstMake Agent
 
+Project: First-Make (repository: GitRaicommerce/First-make)
+
 **Local-first BoQ Processing and LP Optimization for Construction Offers**
 
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
@@ -22,6 +24,77 @@ FirstMake Agent е **desktop приложение** за обработка на
 - 🎨 **Модерен UI** - React с Tailwind CSS и shadcn/ui компоненти
 - 📑 **Excel експорт** - Генериране на КСС файлове с формули и форматиране
 - 🔔 **System Tray** - Фоново изпълнение с tray icon
+
+## 🧭 Последни промени (резюме на извършеното)
+
+- Поправки в парсера за по-надеждно числено парсване (EU/US десетична/хилядна сепарация).
+- Добавена логика за дедупликация при зареждане на ценови бази (PriceBaseLoader).
+- Исправен frontend lint/fast-refresh проблем (компоненти/споделен модул рефакторинг).
+- Добавен GitHub Actions workflow за CI (build + тестове за backend и frontend) — `.github/workflows/ci.yml`.
+- Стартирани и преминали unit тестове локално (dotnet tests green: 31 passed, 1 skipped в последния run).
+- Frontend production build успешно (Vite) — артефакти в `src/UI/dist` при локално пускане.
+- Подготвени и интегрирани страници за Upload / Match / Export в `src/UI/src/pages` (готови за употреба).
+- Отворен и мърджнат PR с фиксовете (branch/PR беше синхронизиран с `main`) и таг `v1.0.0` създаден.
+- Бързо security sweep за комитнати секрети — намерени само placeholder-и в deployment/docs; потребителят оттегли краткотраен PAT.
+
+> Всички тези промени са налични в текущия `main` клон. Ако желаете, мога да помогна с push/release/CI публично публикуване (трябва да дадете разрешение `allow push`).
+
+## 🔍 Какво остава да се направи (high-level Roadmap)
+
+Следните задачи са систематизирани и сортирани по приоритет, за да завършим приложението и да осигурим публичен тест линк:
+
+1) Критично (за стабилно публично тестване)
+  - Deep secret scan през git history (truffleHog/detect-secrets) и поправка/rotate на потенциални секрети.
+  - Конфигуриране на CI publish job: build + docker image + push към GHCR или друг registry.
+  - Подготовка на production Docker images и docker-compose.prod.yml проверка (env vars, volumes, healthchecks).
+
+2) Висок приоритет (UX / developer experience)
+  - Финално полиране на UI страниците (износ на повторяеми компоненти, малки тестове, accessibility).
+  - Address TypeScript / ESLint warning (pin или upgrade @typescript-eslint / TS) за по-чиста CI линтирана среда.
+  - Добавяне на basic frontend tests (vite + vitest / react-testing-library) за UploadZone и Match flows.
+
+3) Среден приоритет (release readiness)
+  - Написване на integration smoke tests, pipeline за release и GitHub Release (publish artifacts и release notes).
+  - Подготовка на devcontainer/Codespaces файл за по-лесен onboarding.
+
+4) По желание (optimize / audit)
+  - Performance tuning и coverage за критични LP операции.
+  - Automated secret scanning on PR и pre-commit hooks.
+
+За всяка задача мога да подготвя конкретен PR с промени и/или GitHub Actions jobs — кажете коя от стъпките да приоритизирам.
+
+## 📎 Как да дам тест линк (опции)
+
+Има няколко бързи варианта да споделите работеща версия за тест:
+
+- Вариант A — Web UI (само frontend): publish `src/UI/dist` към GitHub Pages / Netlify / Vercel. Подходящо, ако искате само визуален тест на UI (без backend). Изисква `npm run build` и upload на `dist/`.
+
+- Вариант B — Пълно приложение чрез Docker: build на backend + ai-gateway + frontend в docker images и пускане с `docker-compose.prod.yml` на тест VM. След това споделяте публичен адрес (или използвате ngrok/ssh tunnel). Подходящо за end-to-end тест.
+
+- Вариант C — GitHub Actions: добавям workflow, който при tag `v1.0.0` билдва images и публикува на GHCR, след което стартира тест deployment на кратък-lived host (e.g., DigitalOcean App Platform / ephemeral host). Това изисква registry credentials (GHCR token) в GitHub Secrets.
+
+Кратки команди за локално тестване (end-to-end):
+
+```bash
+# Start API
+cd src/Api
+dotnet run --urls "http://localhost:5085"
+
+# Start AI Gateway (optional)
+cd ../AiGateway
+dotnet run --urls "http://localhost:5001"
+
+# Start UI (dev)
+cd ../../src/UI
+npm install
+npm run dev
+
+# Open http://localhost:5173 (или адрес от Vite output)
+```
+
+За бърз, временен публичен линк до локално работещ backend/UI може да използвате `ngrok` или `cloudflared` (аз мога да помогна да го завъртим и да споделя публичния URL, ако разрешите). 
+
+---
 
 ## 🏗️ Архитектура
 
@@ -333,10 +406,12 @@ dotnet test tests/Core.Engine.Tests
 
 ### Current Test Results
 
-- **Total Tests**: 26
-- **Passing**: 26 (100%)
+- **Total Tests**: 32
+- **Passing**: 31
+- **Skipped**: 1
 - **Coverage**: Core business logic
-- **Runtime**: ~128ms
+
+> Note: These are the latest local CI results run in the development environment. For up-to-date CI status, check the GitHub Actions page.
 
 ## 📊 Database Schema
 
