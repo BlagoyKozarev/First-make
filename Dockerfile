@@ -17,6 +17,7 @@ RUN dotnet restore
 # Copy source code
 COPY src/ ./src/
 COPY tests/ ./tests/
+COPY Schemas/ ./Schemas/
 
 # Build and publish
 RUN dotnet publish src/Api/Api.csproj -c Release -o /app/api --no-restore
@@ -79,11 +80,18 @@ RUN apt-get update && apt-get install -y \
 # Copy AI Gateway build
 COPY --from=dotnet-build /app/aigateway ./
 
+# Copy Schemas for AI Gateway
+COPY --from=dotnet-build /src/Schemas ./Schemas
+
 # Expose port
 EXPOSE 8080
 
 ENV ASPNETCORE_URLS=http://+:8080
 ENV Tesseract__DataPath=/usr/share/tesseract-ocr/5/tessdata
+ENV Schemas__BoqSchemaPath=/app/Schemas/boq.schema.json
+ENV Schemas__PlaybookPath=/app/Schemas/playbooks/extract.yaml
+ENV Schemas__SystemPromptPath=/app/Schemas/prompts/extract.system.txt
+ENV Schemas__UserPromptPath=/app/Schemas/prompts/extract.user.txt
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/healthz || exit 1
