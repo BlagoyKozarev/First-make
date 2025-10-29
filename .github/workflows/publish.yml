@@ -13,7 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+  IMAGE_PREFIX: ghcr.io/gitraicommerce
 
 jobs:
   build-and-push:
@@ -37,6 +37,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Set image names (lowercase)
+        id: image
+        run: |
+          echo "prefix=ghcr.io/gitraicommerce" >> $GITHUB_OUTPUT
+      
       - name: Extract version from tag
         id: version
         run: |
@@ -56,10 +61,10 @@ jobs:
           target: api-runtime
           push: true
           tags: |
-            ${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE_PREFIX }}/firstmake-api:latest
-          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-api:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-api:buildcache,mode=max
+            ${{ steps.image.outputs.prefix }}/firstmake-api:${{ steps.version.outputs.version }}
+            ${{ steps.image.outputs.prefix }}/firstmake-api:latest
+          cache-from: type=registry,ref=${{ steps.image.outputs.prefix }}/firstmake-api:buildcache
+          cache-to: type=registry,ref=${{ steps.image.outputs.prefix }}/firstmake-api:buildcache,mode=max
       
       - name: Build and push AI Gateway image
         uses: docker/build-push-action@v5
@@ -69,10 +74,10 @@ jobs:
           target: aigateway-runtime
           push: true
           tags: |
-            ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:latest
-          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-aigateway:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-aigateway:buildcache,mode=max
+            ${{ steps.image.outputs.prefix }}/firstmake-aigateway:${{ steps.version.outputs.version }}
+            ${{ steps.image.outputs.prefix }}/firstmake-aigateway:latest
+          cache-from: type=registry,ref=${{ steps.image.outputs.prefix }}/firstmake-aigateway:buildcache
+          cache-to: type=registry,ref=${{ steps.image.outputs.prefix }}/firstmake-aigateway:buildcache,mode=max
       
       - name: Build and push UI image
         uses: docker/build-push-action@v5
@@ -81,10 +86,10 @@ jobs:
           file: ./src/UI/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE_PREFIX }}/firstmake-ui:latest
-          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-ui:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/firstmake-ui:buildcache,mode=max
+            ${{ steps.image.outputs.prefix }}/firstmake-ui:${{ steps.version.outputs.version }}
+            ${{ steps.image.outputs.prefix }}/firstmake-ui:latest
+          cache-from: type=registry,ref=${{ steps.image.outputs.prefix }}/firstmake-ui:buildcache
+          cache-to: type=registry,ref=${{ steps.image.outputs.prefix }}/firstmake-ui:buildcache,mode=max
       
       - name: Generate deployment manifest
         run: |
@@ -98,15 +103,15 @@ jobs:
           
           Docker Images Published:
           ------------------------
-          API:        ${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}
-          AI Gateway: ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}
-          UI:         ${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}
+          API:        ${{ steps.image.outputs.prefix }}/firstmake-api:${{ steps.version.outputs.version }}
+          AI Gateway: ${{ steps.image.outputs.prefix }}/firstmake-aigateway:${{ steps.version.outputs.version }}
+          UI:         ${{ steps.image.outputs.prefix }}/firstmake-ui:${{ steps.version.outputs.version }}
           
           Pull Commands:
           --------------
-          docker pull ${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}
-          docker pull ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}
-          docker pull ${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}
+          docker pull ${{ steps.image.outputs.prefix }}/firstmake-api:${{ steps.version.outputs.version }}
+          docker pull ${{ steps.image.outputs.prefix }}/firstmake-aigateway:${{ steps.version.outputs.version }}
+          docker pull ${{ steps.image.outputs.prefix }}/firstmake-ui:${{ steps.version.outputs.version }}
           
           Deployment:
           -----------
@@ -142,9 +147,9 @@ jobs:
             ### Docker Images
             
             ```bash
-            docker pull ${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}
-            docker pull ${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}
-            docker pull ${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}
+            docker pull ${{ steps.image.outputs.prefix }}/firstmake-api:${{ steps.version.outputs.version }}
+            docker pull ${{ steps.image.outputs.prefix }}/firstmake-aigateway:${{ steps.version.outputs.version }}
+            docker pull ${{ steps.image.outputs.prefix }}/firstmake-ui:${{ steps.version.outputs.version }}
             ```
             
             ### Quick Start
@@ -183,9 +188,9 @@ jobs:
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Published Images" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.IMAGE_PREFIX }}/firstmake-api:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.IMAGE_PREFIX }}/firstmake-aigateway:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.IMAGE_PREFIX }}/firstmake-ui:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ steps.image.outputs.prefix }}/firstmake-api:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ steps.image.outputs.prefix }}/firstmake-aigateway:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ steps.image.outputs.prefix }}/firstmake-ui:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "1. Download deployment manifest from artifacts" >> $GITHUB_STEP_SUMMARY
