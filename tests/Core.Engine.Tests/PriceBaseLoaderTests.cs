@@ -7,7 +7,9 @@ namespace Core.Engine.Tests;
 
 public class PriceBaseLoaderTests
 {
-    private readonly string _samplesPath = "/workspaces/First-make/Schemas/examples/КСС ";
+    private readonly string _samplesPath = Path.Combine(
+        Path.GetDirectoryName(typeof(PriceBaseLoaderTests).Assembly.Location)!,
+        "..", "..", "..", "..", "..", "Schemas", "examples", "КСС ");
 
     [Fact]
     public void LoadFromExcel_RealFile_ShouldParse86Entries()

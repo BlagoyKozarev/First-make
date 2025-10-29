@@ -6,7 +6,9 @@ namespace Core.Engine.Tests;
 
 public class UkazaniaParserTests
 {
-    private readonly string _samplesPath = "/workspaces/First-make/Schemas/examples/КСС ";
+    private readonly string _samplesPath = Path.Combine(
+        Path.GetDirectoryName(typeof(UkazaniaParserTests).Assembly.Location)!,
+        "..", "..", "..", "..", "..", "Schemas", "examples", "КСС ");
 
     [Fact]
     public void ParseFromText_ForecastSection_ShouldExtract19Stages()
