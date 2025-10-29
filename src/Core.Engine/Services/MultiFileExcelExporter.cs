@@ -27,11 +27,11 @@ public class MultiFileExcelExporter
             {
                 // Generate Excel for each BOQ file
                 var excelBytes = await GenerateBoqExcelAsync(doc, iteration, matchResult, session);
-                
+
                 // Add to ZIP
                 var fileName = $"{Path.GetFileNameWithoutExtension(doc.FileName)}_result.xlsx";
                 var entry = archive.CreateEntry(fileName, System.IO.Compression.CompressionLevel.Optimal);
-                
+
                 using var entryStream = entry.Open();
                 await entryStream.WriteAsync(excelBytes, 0, excelBytes.Length);
             }
@@ -51,9 +51,9 @@ public class MultiFileExcelExporter
     {
         // Load original КСС file as template
         var originalFile = session.KssFiles.First(f => f.Id == doc.SourceFileId);
-        
+
         using var package = new ExcelPackage(new FileInfo(originalFile.OriginalPath));
-        
+
         // Process each worksheet
         foreach (var worksheet in package.Workbook.Worksheets)
         {
@@ -95,7 +95,7 @@ public class MultiFileExcelExporter
             coeffCol = colMap["price"];
             worksheet.InsertColumn(coeffCol, 1);
             worksheet.Cells[headerRow, coeffCol].Value = "Коеф.";
-            
+
             // Update column indices after insertion
             foreach (var key in colMap.Keys.ToList())
             {
@@ -114,14 +114,14 @@ public class MultiFileExcelExporter
             workPriceCol = coeffCol + 1;
             worksheet.InsertColumn(workPriceCol, 1);
             worksheet.Cells[headerRow, workPriceCol].Value = "Работна цена";
-            
+
             // Update column indices after insertion
             foreach (var key in colMap.Keys.ToList())
             {
                 if (colMap[key] >= workPriceCol)
                     colMap[key]++;
             }
-            
+
             colMap["price"]++;
             colMap["value"]++;
         }
@@ -132,7 +132,7 @@ public class MultiFileExcelExporter
 
         // Fill data rows
         int dataStartRow = headerRow + 4; // Usually row 12 for data
-        
+
         for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
         {
             var nameCell = worksheet.Cells[row, colMap["name"]].Text?.Trim();
@@ -140,8 +140,8 @@ public class MultiFileExcelExporter
                 continue;
 
             // Find matching item
-            var item = doc.Items.FirstOrDefault(i => 
-                i.SourceSheet == worksheet.Name && 
+            var item = doc.Items.FirstOrDefault(i =>
+                i.SourceSheet == worksheet.Name &&
                 i.SourceRow == row);
 
             if (item == null)

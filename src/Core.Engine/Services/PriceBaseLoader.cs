@@ -15,45 +15,45 @@ public class PriceBaseLoader
     public List<PriceEntry> LoadFromExcel(string filePath, string fileId)
     {
         ExcelHelper.EnsureLicenseSet();
-        
+
         var entries = new List<PriceEntry>();
-        
+
         using var package = new ExcelPackage(new FileInfo(filePath));
-        
+
         // Try to find "Опис" sheet, or use first sheet
-        var worksheet = package.Workbook.Worksheets.FirstOrDefault(ws => 
-            ws.Name.Contains("Опис", StringComparison.OrdinalIgnoreCase)) 
+        var worksheet = package.Workbook.Worksheets.FirstOrDefault(ws =>
+            ws.Name.Contains("Опис", StringComparison.OrdinalIgnoreCase))
             ?? package.Workbook.Worksheets.First();
-        
+
         // Start from row 3 (row 2 is headers)
         int row = 3;
-        
+
         while (row <= worksheet.Dimension.End.Row)
         {
             // Column A: Номер (optional, skip)
             // Column B: Наименование
             // Column C: Мярка
             // Column D: Цена
-            
+
             var name = worksheet.Cells[row, 2].Text?.Trim();
             var unit = worksheet.Cells[row, 3].Text?.Trim();
             var priceText = worksheet.Cells[row, 4].Text?.Trim();
-            
+
             // Skip empty rows
             if (string.IsNullOrWhiteSpace(name))
             {
                 row++;
                 continue;
             }
-            
+
             // Parse price
             if (!decimal.TryParse(priceText, out var price))
             {
                 // Try parsing with comma as decimal separator
                 priceText = priceText?.Replace(",", ".");
-                if (!decimal.TryParse(priceText, 
-                    System.Globalization.NumberStyles.Any, 
-                    System.Globalization.CultureInfo.InvariantCulture, 
+                if (!decimal.TryParse(priceText,
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture,
                     out price))
                 {
                     // Log warning but continue
@@ -62,7 +62,7 @@ public class PriceBaseLoader
                     continue;
                 }
             }
-            
+
             entries.Add(new PriceEntry
             {
                 Name = name,
@@ -71,20 +71,20 @@ public class PriceBaseLoader
                 SourceFileId = fileId,
                 SourceRow = row
             });
-            
+
             row++;
         }
-        
+
         return entries;
     }
-    
+
     /// <summary>
     /// Load from multiple Excel files and merge
     /// </summary>
     public List<PriceEntry> LoadFromMultipleFiles(List<(string FilePath, string FileId)> files)
     {
         var allEntries = new List<PriceEntry>();
-        
+
         foreach (var (filePath, fileId) in files)
         {
             try
@@ -99,7 +99,7 @@ public class PriceBaseLoader
                 throw;
             }
         }
-        
+
         // Deduplicate entries by Name + Unit (case-insensitive, trimmed)
         var deduped = allEntries
             .GroupBy(e => ((e.Name ?? string.Empty).Trim() + "||" + (e.Unit ?? string.Empty).Trim()), StringComparer.OrdinalIgnoreCase)
@@ -117,10 +117,10 @@ public class PriceBaseLoader
             Console.WriteLine($"Warning: Found {duplicates.Count} duplicate entries across price base files:");
             foreach (var dup in duplicates.Take(5))
             {
-                 var parts = dup.Key.Split(new[] { "||" }, StringSplitOptions.None);
-                 var name = parts.Length > 0 ? parts[0] : dup.Key;
-                 var unit = parts.Length > 1 ? parts[1] : "";
-                 Console.WriteLine($"  - {name} ({unit}): {dup.Count()} occurrences");
+                var parts = dup.Key.Split(new[] { "||" }, StringSplitOptions.None);
+                var name = parts.Length > 0 ? parts[0] : dup.Key;
+                var unit = parts.Length > 1 ? parts[1] : "";
+                Console.WriteLine($"  - {name} ({unit}): {dup.Count()} occurrences");
             }
         }
 

@@ -31,13 +31,13 @@ public class FuzzyMatcher
         foreach (var entry in priceBase)
         {
             var normalizedEntryUnit = _unitNormalizer.Normalize(entry.Unit);
-            
+
             // Unit must match (or be equivalent)
             if (!string.Equals(normalizedItemUnit, normalizedEntryUnit, StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var score = CalculateScore(item.Name, entry);
-            
+
             if (score >= MinScoreThreshold)
             {
                 candidates.Add(new CandidateMatch
@@ -93,14 +93,14 @@ public class FuzzyMatcher
     {
         if (string.IsNullOrEmpty(s1) && string.IsNullOrEmpty(s2))
             return 1.0;
-        
+
         if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
             return 0.0;
 
         var lev = new Levenshtein(s1);
         var distance = lev.DistanceFrom(s2);
         var maxLen = Math.Max(s1.Length, s2.Length);
-        
+
         return 1.0 - ((double)distance / maxLen);
     }
 
@@ -111,7 +111,7 @@ public class FuzzyMatcher
     {
         var tokens1 = string.Join(" ", TextNormalizer.TokenSort(s1));
         var tokens2 = string.Join(" ", TextNormalizer.TokenSort(s2));
-        
+
         return LevenshteinSimilarity(tokens1, tokens2);
     }
 }

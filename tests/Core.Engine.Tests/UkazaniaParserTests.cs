@@ -7,7 +7,7 @@ namespace Core.Engine.Tests;
 public class UkazaniaParserTests
 {
     private readonly string _samplesPath = "/workspaces/First-make/Schemas/examples/КСС ";
-    
+
     [Fact]
     public void ParseFromText_ForecastSection_ShouldExtract19Stages()
     {
@@ -36,20 +36,20 @@ public class UkazaniaParserTests
 Етап 19: 31,943.20 лв
 Обща стойност: 2,688,791.39 лв (без ДДС)
 ";
-        
+
         // Act
         var forecasts = parser.ParseFromText(sampleText);
-        
+
         // Assert
         Assert.NotNull(forecasts);
         Assert.Equal(19, forecasts.Stages.Count);
         Assert.Equal(2688791.39m, forecasts.TotalForecast);
-        
+
         // Check first stage
         var stage1 = forecasts.Stages["Етап 1"];
         Assert.Equal(128203.60m, stage1.Forecast);
     }
-    
+
     [Fact(Skip = "Requires Python and python-docx installed")]
     public async Task ParseFromWordAsync_RealFile_ShouldExtract19Stages()
     {
@@ -60,12 +60,12 @@ public class UkazaniaParserTests
             Assert.True(true, "Указания file not found");
             return;
         }
-        
+
         var parser = new UkazaniaParser();
-        
+
         // Act
         var forecasts = await parser.ParseFromWordAsync(filePath, "test-file-1");
-        
+
         // Assert
         Assert.NotNull(forecasts);
         Assert.Equal(19, forecasts.Stages.Count);

@@ -21,14 +21,14 @@ public class UkazaniaParser
         // Use Python script to extract text from Word document
         var pythonScript = GeneratePythonScript(filePath);
         var scriptPath = Path.Combine(Path.GetTempPath(), $"parse_ukazania_{Guid.NewGuid()}.py");
-        
+
         try
         {
             await File.WriteAllTextAsync(scriptPath, pythonScript);
-            
+
             // Execute Python script
             var output = await ExecutePythonScriptAsync(scriptPath);
-            
+
             // Parse output
             return ParseExtractedText(output, fileId);
         }
@@ -40,7 +40,7 @@ public class UkazaniaParser
             }
         }
     }
-    
+
     /// <summary>
     /// Parses already extracted text (for testing or AI extraction)
     /// </summary>
@@ -48,11 +48,11 @@ public class UkazaniaParser
     {
         return ParseExtractedText(text, fileId);
     }
-    
+
     private string GeneratePythonScript(string wordFilePath)
     {
         var escapedPath = wordFilePath.Replace("\\", "\\\\").Replace("'", "\\'");
-        
+
         return $@"
 import sys
 from docx import Document
@@ -97,7 +97,7 @@ except Exception as e:
     sys.exit(1)
 ";
     }
-    
+
     private async Task<string> ExecutePythonScriptAsync(string scriptPath)
     {
         using var process = new System.Diagnostics.Process
@@ -112,38 +112,38 @@ except Exception as e:
                 CreateNoWindow = true
             }
         };
-        
+
         process.Start();
-        
+
         var output = await process.StandardOutput.ReadToEndAsync();
         var error = await process.StandardError.ReadToEndAsync();
-        
+
         await process.WaitForExitAsync();
-        
+
         if (process.ExitCode != 0)
         {
             throw new Exception($"Python script failed: {error}");
         }
-        
+
         return output;
     }
-    
+
     private StageForecasts ParseExtractedText(string text, string sourceFileId = "unknown")
     {
         var stages = new Dictionary<string, StageForecast>();
         decimal totalForecast = 0;
-        
+
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
-            
+
             // Parse stage forecast: "Етап 1: 128,203.60 лв" or "Приложение № 1: 128,203.60 лв"
-            var stageMatch = Regex.Match(trimmed, 
-                @"(Етап|Приложение\s*№?)\s*(\d+)\s*[:\-–—]\s*([\d,\s.]+)\s*лв", 
+            var stageMatch = Regex.Match(trimmed,
+                @"(Етап|Приложение\s*№?)\s*(\d+)\s*[:\-–—]\s*([\d,\s.]+)\s*лв",
                 RegexOptions.IgnoreCase);
-            
+
             if (stageMatch.Success)
             {
                 var stageNumber = stageMatch.Groups[2].Value;
@@ -163,7 +163,7 @@ except Exception as e:
                 {
                     amountText = amountText.Replace(",", ".");
                 }
-                
+
                 if (decimal.TryParse(amountText,
                     System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture,
@@ -175,17 +175,17 @@ except Exception as e:
                         Name = $"Етап {stageNumber}",
                         Forecast = amount
                     };
-                    
+
                     totalForecast += amount;
                 }
                 continue;
             }
-            
+
             // Parse total: "Обща стойност: 2,688,791.39 лв (без ДДС)"
             var totalMatch = Regex.Match(trimmed,
                 @"(Обща|Общо|Всичко)\s*(стойност)?\s*[:\-–—]?\s*([\d,\s.]+)\s*лв",
                 RegexOptions.IgnoreCase);
-            
+
             if (totalMatch.Success)
             {
                 var amountText = totalMatch.Groups[3].Value
@@ -200,7 +200,7 @@ except Exception as e:
                 {
                     amountText = amountText.Replace(",", ".");
                 }
-                
+
                 if (decimal.TryParse(amountText,
                     System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture,
@@ -210,14 +210,14 @@ except Exception as e:
                 }
             }
         }
-        
+
         // Validate: sum of stages should match total (within 1 лв tolerance)
         var stagesSum = stages.Values.Sum(s => s.Forecast);
         if (Math.Abs(stagesSum - totalForecast) > 1.0m && totalForecast > 0)
         {
             Console.WriteLine($"Warning: Stages sum ({stagesSum:F2}) != Total ({totalForecast:F2})");
         }
-        
+
         return new StageForecasts
         {
             Stages = stages,

@@ -9,22 +9,22 @@ public record ProjectSession
     public required string ObjectName { get; init; }
     public required string Employee { get; init; }
     public required DateTime Date { get; init; }
-    
+
     // Input files metadata
     public List<FileMetadata> InstructionsFiles { get; init; } = new();
     public List<FileMetadata> PriceBaseFiles { get; init; } = new();
     public List<FileMetadata> KssFiles { get; init; } = new();
     public FileMetadata? TemplateFile { get; init; }
-    
+
     // Extracted data
     public StageForecasts? Forecasts { get; init; }
     public List<PriceEntry> PriceBase { get; init; } = new();
     public List<BoqDocument> BoqDocuments { get; init; } = new();
-    
+
     // Iterations
     public List<IterationResult> Iterations { get; init; } = new();
     public int CurrentIteration { get; init; }
-    
+
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
 }
@@ -86,24 +86,24 @@ public record IterationResult
 {
     public required int IterationNumber { get; init; }
     public required DateTime Timestamp { get; init; }
-    
+
     // Unified coefficients (same for all BOQ files)
     public required Dictionary<string, CoefficientEntry> Coefficients { get; init; }
-    
+
     // Results per BOQ file
     public required Dictionary<string, BoqFileResult> BoqResults { get; init; }
-    
+
     // Overall aggregated results
     public required decimal OverallProposed { get; init; }
     public required decimal OverallForecast { get; init; }
     public decimal OverallGap => OverallForecast - OverallProposed;
     public bool Ok => OverallGap >= 0;
-    
+
     // Optimization metadata
     public required string SolverStatus { get; init; }
     public required long SolveDurationMs { get; init; }
     public required double Objective { get; init; }
-    
+
     // Generated output files
     public required List<OutputFileMetadata> OutputFiles { get; init; }
 }

@@ -35,7 +35,7 @@ public class UnitNormalizer
         {
             // Canonical maps to itself
             _variantToCanonical[alias.Canonical] = alias.Canonical;
-            
+
             // Each variant maps to canonical
             if (alias.Variants != null)
             {
@@ -56,7 +56,7 @@ public class UnitNormalizer
             return string.Empty;
 
         var trimmed = unit.Trim();
-        
+
         // Direct lookup (case-insensitive)
         if (_variantToCanonical.TryGetValue(trimmed, out var canonical))
             return canonical;

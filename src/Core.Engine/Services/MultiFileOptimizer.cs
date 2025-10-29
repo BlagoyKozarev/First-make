@@ -32,7 +32,7 @@ public class MultiFileOptimizer
 
         // Get all unique (Name, Unit) pairs across all files
         var uniquePairs = matchResult.UnifiedMatches.Keys.ToList();
-        
+
         // Create decision variables: one coefficient per unique (Name, Unit)
         var coeffVars = new Dictionary<string, Variable>();
         var dPlusVars = new Dictionary<string, Variable>();
@@ -64,12 +64,12 @@ public class MultiFileOptimizer
         // Per-stage budget constraints: ProposedValue ≤ Forecast
         // Group items by stage across all BOQ files
         var stageConstraints = new Dictionary<string, Constraint>();
-        
+
         foreach (var forecast in session.Forecasts.Stages.Values)
         {
             stageConstraints[forecast.Code] = solver.MakeConstraint(
-                double.NegativeInfinity, 
-                (double)forecast.Forecast, 
+                double.NegativeInfinity,
+                (double)forecast.Forecast,
                 $"budget_{forecast.Code}"
             );
         }
@@ -148,7 +148,7 @@ public class MultiFileOptimizer
 
         // Calculate per-BOQ-file results
         var boqResults = new Dictionary<string, BoqFileResult>();
-        
+
         foreach (var doc in session.BoqDocuments)
         {
             var docItems = matchResult.ItemMatches.Values
@@ -156,11 +156,11 @@ public class MultiFileOptimizer
                 .ToList();
 
             var stageResultsList = new List<StageResult>();
-            
+
             foreach (var stage in doc.Stages)
             {
                 var stageItems = docItems.Where(m => m.Item.StageCode == stage.Code).ToList();
-                
+
                 var itemResults = stageItems
                     .Select(m =>
                     {
@@ -236,7 +236,7 @@ public class MultiFileOptimizer
     /// Calculate item-level results (for detailed export)
     /// </summary>
     public List<ItemResult> CalculateItemResults(
-        UnifiedMatchResult matchResult, 
+        UnifiedMatchResult matchResult,
         Dictionary<string, CoefficientEntry> coefficients)
     {
         var results = new List<ItemResult>();

@@ -25,14 +25,14 @@ public class UnifiedMatcher
     {
         var itemMatches = new Dictionary<string, ItemMatch>();
         var unmatchedItems = new List<BoqItemDto>();
-        
+
         // Process all items from all documents
         foreach (var doc in boqDocuments)
         {
             foreach (var item in doc.Items)
             {
                 var key = GetUnifiedKey(item.Name, item.Unit);
-                
+
                 // Check if we already matched this (Name, Unit) combination
                 if (_unifiedMatches.TryGetValue(key, out var existingMatch))
                 {
@@ -51,37 +51,37 @@ public class UnifiedMatcher
                 {
                     // Find new match
                     var candidates = _fuzzyMatcher.FindCandidates(
-                        new ItemDto 
-                        { 
+                        new ItemDto
+                        {
                             Stage = item.StageCode,
-                            Name = item.Name, 
-                            Unit = item.Unit, 
-                            Qty = item.Quantity 
-                        }, 
-                        priceBase.Select(p => new PriceBaseEntry 
-                        { 
-                            Name = p.Name, 
-                            Unit = p.Unit, 
-                            BasePrice = p.BasePrice 
-                        }).ToList(), 
+                            Name = item.Name,
+                            Unit = item.Unit,
+                            Qty = item.Quantity
+                        },
+                        priceBase.Select(p => new PriceBaseEntry
+                        {
+                            Name = p.Name,
+                            Unit = p.Unit,
+                            BasePrice = p.BasePrice
+                        }).ToList(),
                         topN: 5
                     );
-                    
+
                     if (candidates.Any() && candidates.First().Score >= 0.6)
                     {
                         var best = candidates.First();
-                        var priceEntry = priceBase.First(p => 
+                        var priceEntry = priceBase.First(p =>
                             p.Name == best.Entry.Name && p.Unit == best.Entry.Unit);
-                        
+
                         var matchResult = new MatchResult
                         {
                             PriceEntry = priceEntry,
                             Score = (decimal)best.Score
                         };
-                        
+
                         // Store unified match
                         _unifiedMatches[key] = matchResult;
-                        
+
                         itemMatches[item.Id] = new ItemMatch
                         {
                             ItemId = item.Id,
@@ -96,7 +96,7 @@ public class UnifiedMatcher
                     {
                         // No good match found
                         unmatchedItems.Add(item);
-                        
+
                         itemMatches[item.Id] = new ItemMatch
                         {
                             ItemId = item.Id,
@@ -110,7 +110,7 @@ public class UnifiedMatcher
                 }
             }
         }
-        
+
         return new UnifiedMatchResult
         {
             ItemMatches = itemMatches,
@@ -137,16 +137,16 @@ public class UnifiedMatcher
         {
             throw new KeyNotFoundException($"Item {itemId} not found in match results");
         }
-        
+
         var key = itemMatch.UnifiedKey;
-        
+
         // Update unified match
         _unifiedMatches[key] = new MatchResult
         {
             PriceEntry = priceEntry,
             Score = 1.0m // Manual match = perfect score
         };
-        
+
         // Update all items with same key
         foreach (var match in currentResult.ItemMatches.Values.Where(m => m.UnifiedKey == key))
         {
@@ -166,37 +166,37 @@ public class UnifiedMatcher
             .Select(item => GetUnifiedKey(item.Name, item.Unit))
             .Distinct()
             .ToList();
-        
+
         var candidates = new List<UnifiedCandidate>();
-        
+
         foreach (var key in unmatchedKeys)
         {
             var sampleItem = result.UnmatchedItems.First(i => GetUnifiedKey(i.Name, i.Unit) == key);
-            
+
             var topCandidates = _fuzzyMatcher.FindCandidates(
-                new ItemDto 
-                { 
+                new ItemDto
+                {
                     Stage = sampleItem.StageCode,
-                    Name = sampleItem.Name, 
-                    Unit = sampleItem.Unit, 
-                    Qty = sampleItem.Quantity 
+                    Name = sampleItem.Name,
+                    Unit = sampleItem.Unit,
+                    Qty = sampleItem.Quantity
                 },
-                priceBase.Select(p => new PriceBaseEntry 
-                { 
-                    Name = p.Name, 
-                    Unit = p.Unit, 
-                    BasePrice = p.BasePrice 
+                priceBase.Select(p => new PriceBaseEntry
+                {
+                    Name = p.Name,
+                    Unit = p.Unit,
+                    BasePrice = p.BasePrice
                 }).ToList(),
                 topN: 5
             );
-            
+
             candidates.Add(new UnifiedCandidate
             {
                 UnifiedKey = key,
                 Name = sampleItem.Name,
                 Unit = sampleItem.Unit,
                 OccurrenceCount = result.ItemMatches.Values.Count(m => m.UnifiedKey == key),
-                TopMatches = topCandidates.Select(c => 
+                TopMatches = topCandidates.Select(c =>
                 {
                     var priceEntry = priceBase.First(p => p.Name == c.Entry.Name && p.Unit == c.Entry.Unit);
                     return new PriceCandidateMatch
@@ -207,7 +207,7 @@ public class UnifiedMatcher
                 }).ToList()
             });
         }
-        
+
         return candidates.OrderByDescending(c => c.OccurrenceCount).ToList();
     }
 

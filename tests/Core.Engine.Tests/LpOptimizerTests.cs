@@ -53,7 +53,7 @@ public class LpOptimizerTests
         Assert.NotNull(result);
         Assert.Equal(2, result.Coeffs.Count); // 2 unique (name, unit) pairs
         Assert.True(result.SolverStatus == "OPTIMAL" || result.SolverStatus == "FEASIBLE");
-        
+
         // Check stage summary
         Assert.Single(result.PerStage);
         var stageSummary = result.PerStage[0];
@@ -131,7 +131,7 @@ public class LpOptimizerTests
         var result = _optimizer.Optimize(request);
 
         Assert.Equal("OPTIMAL", result.SolverStatus);
-        
+
         // Should try to maximize: c should be close to maxCoeff or constrained by budget
         var coeff = result.Coeffs.First().C;
         // 100 * 100 * c <= 15000 => c <= 1.5
@@ -285,7 +285,7 @@ public class LpOptimizerTests
         var coeff = result.Coeffs.First().C;
         var basePrice = result.Coeffs.First().BasePrice;
         var workPrice = Math.Round(basePrice * (decimal)coeff, 2);
-        
+
         // Working price should be rounded to 2 decimals
         Assert.Equal(33.33m, workPrice);
     }

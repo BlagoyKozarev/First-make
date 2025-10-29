@@ -28,7 +28,7 @@ public class LpOptimizer
 
         // Get unique (name, unit) pairs
         var uniquePairs = GetUniquePairs(request.MatchedItems);
-        
+
         // Create decision variables: c_g for each (name, unit)
         var coeffVars = new Dictionary<(string name, string unit), Variable>();
         var dPlusVars = new Dictionary<(string name, string unit), Variable>();  // d⁺ for |c - 1|
@@ -38,7 +38,7 @@ public class LpOptimizer
         {
             // c_g ∈ [minCoeff, maxCoeff]
             coeffVars[pair] = solver.MakeNumVar(request.MinCoeff, request.MaxCoeff, $"c_{pair.name}_{pair.unit}");
-            
+
             // d⁺, d⁻ ≥ 0 for L1 linearization
             dPlusVars[pair] = solver.MakeNumVar(0, double.PositiveInfinity, $"d+_{pair.name}_{pair.unit}");
             dMinusVars[pair] = solver.MakeNumVar(0, double.PositiveInfinity, $"d-_{pair.name}_{pair.unit}");
@@ -57,7 +57,7 @@ public class LpOptimizer
         foreach (var stage in request.Stages)
         {
             var stageConstraint = solver.MakeConstraint(double.NegativeInfinity, (double)stage.Forecast, $"budget_{stage.Code}");
-            
+
             var stageItems = request.MatchedItems.Where(m => m.Item.Stage == stage.Code);
             foreach (var item in stageItems)
             {
@@ -69,7 +69,7 @@ public class LpOptimizer
 
         // Objective: maximize total value - λ * Σ(d⁺ + d⁻)
         var objective = solver.Objective();
-        
+
         // Total value term: Σ(qty * basePrice * c)
         foreach (var item in request.MatchedItems)
         {
@@ -113,8 +113,8 @@ public class LpOptimizer
         var perStage = CalculateStageSummaries(request, coeffs);
         var totalValue = perStage.Sum(s => s.Proposed);
         var penalty = CalculatePenalty(coeffs.Values, request.Lambda);
-        var objectiveValue = resultStatus == Solver.ResultStatus.OPTIMAL 
-            ? solver.Objective().Value() 
+        var objectiveValue = resultStatus == Solver.ResultStatus.OPTIMAL
+            ? solver.Objective().Value()
             : (double)totalValue - penalty;
 
         return new OptimizationResult

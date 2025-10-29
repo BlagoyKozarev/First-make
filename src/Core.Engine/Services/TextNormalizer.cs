@@ -10,7 +10,7 @@ public static partial class TextNormalizer
 {
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRegex();
-    
+
     [GeneratedRegex(@"[^\p{L}\p{N}\s]")]
     private static partial Regex PunctuationRegex();
 
@@ -24,13 +24,13 @@ public static partial class TextNormalizer
 
         // Lowercase
         var normalized = text.ToLowerInvariant();
-        
+
         // Remove punctuation (keep letters, numbers, spaces)
         normalized = PunctuationRegex().Replace(normalized, " ");
-        
+
         // Collapse whitespace
         normalized = WhitespaceRegex().Replace(normalized, " ");
-        
+
         return normalized.Trim();
     }
 
