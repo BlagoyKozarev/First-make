@@ -25,43 +25,83 @@ FirstMake Agent е **desktop приложение** за обработка на
 - 📑 **Excel експорт** - Генериране на КСС файлове с формули и форматиране
 - 🔔 **System Tray** - Фоново изпълнение с tray icon
 
-## 🧭 Последни промени (резюме на извършеното)
+## 🧭 Последни промени (v1.0.1 - Oct 2025)
 
-- Поправки в парсера за по-надеждно числено парсване (EU/US десетична/хилядна сепарация).
-- Добавена логика за дедупликация при зареждане на ценови бази (PriceBaseLoader).
-- Исправен frontend lint/fast-refresh проблем (компоненти/споделен модул рефакторинг).
-- Добавен GitHub Actions workflow за CI (build + тестове за backend и frontend) — `.github/workflows/ci.yml`.
-- Стартирани и преминали unit тестове локално (dotnet tests green: 31 passed, 1 skipped в последния run).
-- Frontend production build успешно (Vite) — артефакти в `src/UI/dist` при локално пускане.
-- Подготвени и интегрирани страници за Upload / Match / Export в `src/UI/src/pages` (готови за употреба).
-- Отворен и мърджнат PR с фиксовете (branch/PR беше синхронизиран с `main`) и таг `v1.0.0` създаден.
-- Бързо security sweep за комитнати секрети — намерени само placeholder-и в deployment/docs; потребителят оттегли краткотраен PAT.
+### Security & CI/CD Improvements
+- ✅ **Deep Secret Scan** - Comprehensive audit с detect-secrets, открити и документирани leaked credentials
+- ✅ **SECURITY.md** - 400+ реда security документация с incident response playbook
+- ✅ **GitHub Actions** - Пълна CI/CD pipeline с 3 workflows (ci.yml, ci-cd.yml, publish.yml)
+- ✅ **Docker Publishing** - Автоматично build & push към GHCR на всеки release tag
+- ✅ **Permissions Fix** - Конфигурирани всички GitHub Actions permissions (contents, checks, packages)
 
-> Всички тези промени са налични в текущия `main` клон. Ако желаете, мога да помогна с push/release/CI публично публикуване (трябва да дадете разрешение `allow push`).
+### Production Deployment
+- ✅ **docker-compose.prod.yml** - Production-ready конфигурация с env vars
+- ✅ **validate.sh** - Pre-deployment validation скрипт
+- ✅ **.env.example** - Simplified environment configuration template
 
-## 🔍 Какво остава да се направи (high-level Roadmap)
+### Code Quality
+- ✅ **dotnet format** - Приложено форматиране на 16 source files
+- ✅ **TypeScript 5.6** - Upgraded TypeScript & ESLint 9.15 (zero warnings)
+- ✅ **Test Fixes** - Compilation fixes за Performance benchmarks
+- ✅ **Cross-platform Tests** - Relative paths вместо hardcoded workspace paths
+- ✅ **Docker Optimization** - Multi-stage build с правилни dependencies
 
-Следните задачи са систематизирани и сортирани по приоритет, за да завършим приложението и да осигурим публичен тест линк:
+### CI/CD Status
+- **Tests**: 31 passing, 1 skipped (Python docx parser - optional)
+- **Workflows**: All green ✅
+- **Docker Images**: ghcr.io/gitraicommerce/firstmake-{api,aigateway,ui}:v1.0.1
 
-1) Критично (за стабилно публично тестване)
-  - Deep secret scan през git history (truffleHog/detect-secrets) и поправка/rotate на потенциални секрети.
-  - Конфигуриране на CI publish job: build + docker image + push към GHCR или друг registry.
-  - Подготовка на production Docker images и docker-compose.prod.yml проверка (env vars, volumes, healthchecks).
+> Tag **v1.0.1** е публикуван с пълна CI/CD automation. Вижте [SECURITY.md](docs/SECURITY.md) за security guidelines.
 
-2) Висок приоритет (UX / developer experience)
-  - Финално полиране на UI страниците (износ на повторяеми компоненти, малки тестове, accessibility).
-  - Address TypeScript / ESLint warning (pin или upgrade @typescript-eslint / TS) за по-чиста CI линтирана среда.
-  - Добавяне на basic frontend tests (vite + vitest / react-testing-library) за UploadZone и Match flows.
+## 🔍 Roadmap & Next Steps
 
-3) Среден приоритет (release readiness)
-  - Написване на integration smoke tests, pipeline за release и GitHub Release (publish artifacts и release notes).
-  - Подготовка на devcontainer/Codespaces файл за по-лесен onboarding.
+### Завършено ✅
+1. **Security Audit** - Deep secret scan, SECURITY.md, credentials rotation
+2. **CI/CD Pipeline** - GitHub Actions workflows за build, test, publish
+3. **Production Deployment** - Docker images, validation скриптове, env configuration
+4. **Code Quality** - Formatting, TypeScript upgrade, test fixes
+5. **Release v1.0.1** - Публикуван с full automation
 
-4) По желание (optimize / audit)
-  - Performance tuning и coverage за критични LP операции.
-  - Automated secret scanning on PR и pre-commit hooks.
+### High Priority (следващи стъпки)
+1. **Frontend Component Tests**
+   - vitest + React Testing Library setup
+   - Unit tests за UploadZone, MatchReview, OptimizationResults
+   - Integration tests за workflow steps
 
-За всяка задача мога да подготвя конкретен PR с промени и/или GitHub Actions jobs — кажете коя от стъпките да приоритизирам.
+2. **UI Componentization**
+   - Extract reusable components (FileList, MatchCard, StageTable)
+   - Accessibility improvements (ARIA labels, keyboard navigation)
+   - Mobile responsiveness optimization
+
+3. **Advanced Monitoring Dashboard**
+   - Real-time LP optimization progress tracking
+   - Performance metrics visualization
+   - Historical optimization comparisons
+
+### Medium Priority
+4. **Multi-language Support**
+   - i18n setup (react-i18next)
+   - English translations
+   - Language switcher UI
+
+5. **Excel Export Enhancements**
+   - Custom template support
+   - Formula preservation from original КСС
+   - Conditional formatting
+
+6. **Desktop App Improvements**
+   - Auto-update mechanism (electron-updater)
+   - Offline mode detection
+   - Backup/restore functionality
+
+### Low Priority / Future Ideas
+- PDF generation за финални оферти
+- Export към други формати (CSV, JSON)
+- Advanced fuzzy matching с ML models
+- Cloud sync (optional) за multi-device
+- Collaborative editing features
+
+> Препоръчвам да започнем с Frontend Component Tests за да осигурим stability преди следващи features.
 
 ## 📎 Как да дам тест линк (опции)
 
