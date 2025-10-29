@@ -48,10 +48,10 @@ jobs:
         fail-on-error: false  # Don't fail on skipped tests
         
     - name: Publish API
-      run: dotnet publish src/Api/Api.csproj --configuration Release --output ./publish/api --no-build
+      run: dotnet publish src/Api/Api.csproj --configuration Release --output ./publish/api
       
     - name: Publish AI Gateway
-      run: dotnet publish src/AiGateway/AiGateway.csproj --configuration Release --output ./publish/aigateway --no-build
+      run: dotnet publish src/AiGateway/AiGateway.csproj --configuration Release --output ./publish/aigateway
       
     - name: Upload API artifacts
       uses: actions/upload-artifact@v4
