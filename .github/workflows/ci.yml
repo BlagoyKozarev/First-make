@@ -45,6 +45,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: 'src/UI/package-lock.json'
 
       - name: Install dependencies (UI)
         working-directory: src/UI

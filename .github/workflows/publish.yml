@@ -48,11 +48,13 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             VERSION="${{ github.event.inputs.tag }}"
           else
-            VERSION="${{ github.ref_name }}"
+            # Extract tag name from GITHUB_REF (refs/tags/v1.0.1 -> v1.0.1)
+            VERSION=$(echo "$GITHUB_REF" | sed 's|refs/tags/||')
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "version_short=${VERSION#v}" >> $GITHUB_OUTPUT
           echo "Extracted version: ${VERSION}"
+          echo "GITHUB_REF: $GITHUB_REF"
       
       - name: Build and push API image
         uses: docker/build-push-action@v5
