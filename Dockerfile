@@ -20,8 +20,8 @@ COPY tests/ ./tests/
 COPY Schemas/ ./Schemas/
 
 # Build and publish
-RUN dotnet publish src/Api/Api.csproj -c Release -o /app/api --no-restore
-RUN dotnet publish src/AiGateway/AiGateway.csproj -c Release -o /app/aigateway --no-restore
+RUN dotnet publish src/Api/Api.csproj -c Release -o /app/api
+RUN dotnet publish src/AiGateway/AiGateway.csproj -c Release -o /app/aigateway
 
 # Stage 2: Build React Frontend
 FROM node:20-alpine AS node-build
