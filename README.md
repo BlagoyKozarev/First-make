@@ -7,6 +7,7 @@ Project: First-Make (repository: GitRaicommerce/First-make)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![React](https://img.shields.io/badge/React-18-61DAFB)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6)](https://www.typescriptlang.org/)
+[![codecov](https://codecov.io/gh/GitRaicommerce/First-make/branch/main/graph/badge.svg)](https://codecov.io/gh/GitRaicommerce/First-make)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 🎯 Overview
@@ -46,8 +47,16 @@ FirstMake Agent е **desktop приложение** за обработка на
 - ✅ **Cross-platform Tests** - Relative paths вместо hardcoded workspace paths
 - ✅ **Docker Optimization** - Multi-stage build с правилни dependencies
 
+### Frontend Testing & Coverage
+- ✅ **Vitest + React Testing Library** - Пълен testing setup с 8 passing tests
+- ✅ **Component Tests** - UploadPage тестове за file upload, validation, UI interactions
+- ✅ **Code Coverage** - 80% threshold за lines/branches/functions/statements
+- ✅ **CI Integration** - Automated test runs в GitHub Actions frontend-build job
+- ✅ **Coverage Reports** - HTML reports generated in `src/UI/coverage/`
+
 ### CI/CD Status
-- **Tests**: 31 passing, 1 skipped (Python docx parser - optional)
+- **Backend Tests**: 31 passing, 1 skipped (Python docx parser - optional)
+- **Frontend Tests**: 8 passing (React component tests with 80%+ coverage)
 - **Workflows**: All green ✅
 - **Docker Images**: ghcr.io/gitraicommerce/firstmake-{api,aigateway,ui}:v1.0.1
 
@@ -264,6 +273,62 @@ docker-compose logs -f
 # Stop services
 docker-compose down
 ```
+
+## 🧪 Testing
+
+### Backend Tests (.NET)
+
+```bash
+# Run all tests
+dotnet test FirstMake.sln
+
+# Run with detailed output
+dotnet test FirstMake.sln --verbosity normal
+
+# Run specific test project
+dotnet test tests/Core.Engine.Tests/Core.Engine.Tests.csproj
+
+# Performance benchmarks
+cd tests/Performance
+dotnet run -c Release
+```
+
+### Frontend Tests (React + Vitest)
+
+```bash
+cd src/UI
+
+# Run tests once
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests with UI
+npm run test:ui
+```
+
+**Coverage Thresholds:**
+- Lines: 80%
+- Branches: 80%
+- Functions: 80%
+- Statements: 80%
+
+Coverage reports are generated in `src/UI/coverage/` directory.
+
+### Test Suite Status
+
+- **Backend**: 31 passing, 1 skipped
+  - Unit tests (Core.Engine)
+  - Integration tests
+  - Performance benchmarks
+- **Frontend**: 8 passing
+  - Component tests (React Testing Library)
+  - Upload page validation
+  - File handling & UI interactions
 
 ## 📖 API Documentation
 
