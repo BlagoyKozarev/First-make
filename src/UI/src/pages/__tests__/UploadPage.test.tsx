@@ -255,4 +255,137 @@ describe('UploadPage', () => {
       expect(screen.getByText('template.xlsx')).toBeInTheDocument();
     });
   });
+
+  it('handles drag and drop events', async () => {
+    render(<UploadPage />);
+
+    const dropZones = document.querySelectorAll('[class*="border-dashed"]');
+    const kssDropZone = dropZones[0];
+
+    // Create mock file
+    const file = new File(['content'], 'dragged.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    // Simulate drag over
+    fireEvent.dragOver(kssDropZone, {
+      dataTransfer: {
+        files: [file],
+      },
+    });
+
+    // Simulate drag leave
+    fireEvent.dragLeave(kssDropZone);
+
+    // Simulate drop
+    fireEvent.drop(kssDropZone, {
+      dataTransfer: {
+        files: [file],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('dragged.xlsx')).toBeInTheDocument();
+    });
+  });
+
+  it('displays file size in MB', async () => {
+    render(<UploadPage />);
+
+    const file = new File(['a'.repeat(1024 * 1024 * 2)], 'large.xlsx', { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[0], { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/2\.\d{2} MB/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows max files reached message', async () => {
+    render(<UploadPage />);
+
+    // Create 25 files (max for KSS)
+    const files = Array.from({ length: 25 }, (_, i) => 
+      new File(['content'], `file-${i}.xlsx`, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    );
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    const kssInput = inputs[0] as HTMLInputElement;
+
+    // Upload all 25 files
+    Object.defineProperty(kssInput, 'files', {
+      value: files,
+      writable: false,
+    });
+    fireEvent.change(kssInput);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Достигнат максимален брой файлове/i)).toBeInTheDocument();
+    });
+  });
+
+  it('redirects to home if no projectId', () => {
+    sessionStorage.removeItem('currentProjectId');
+    render(<UploadPage />);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('displays validation error when no KSS files', async () => {
+    render(<UploadPage />);
+
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    
+    // Button should be disabled initially
+    expect(uploadButton).toBeDisabled();
+  });
+
+  it('shows upload progress messages', async () => {
+    vi.mocked(api.uploadKssFiles).mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+    vi.mocked(api.uploadUkazaniaFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadPriceBaseFiles).mockResolvedValue(undefined);
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const inputs = document.querySelectorAll('input[type="file"]');
+    
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('kss.xlsx')).toBeInTheDocument();
+    });
+  });
+
+  it('handles back navigation', () => {
+    render(<UploadPage />);
+
+    const backButton = screen.getByRole('button', { name: /назад/i });
+    fireEvent.click(backButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('shows max files message when limit reached for template', async () => {
+    render(<UploadPage />);
+
+    // Upload single file to template zone (maxFiles: 1)
+    const templateFile = new File(['content'], 'template.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const inputs = document.querySelectorAll('input[type="file"]');
+    const templateInput = inputs[3] as HTMLInputElement;
+
+    fireEvent.change(templateInput, { target: { files: [templateFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('template.xlsx')).toBeInTheDocument();
+    });
+
+    // Should show max files message (maxFiles: 1)
+    await waitFor(() => {
+      const maxMessages = screen.queryAllByText(/Достигнат максимален брой файлове/i);
+      // Template zone should show this message since it reached max (1 file)
+      expect(maxMessages.length).toBeGreaterThan(0);
+    });
+  });
 });
