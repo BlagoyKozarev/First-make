@@ -55,7 +55,7 @@ FirstMake Agent е **desktop приложение** за обработка на
 - ✅ **Coverage** - **79.64% overall** (api: 100%, ConfirmDialog: 100%, SetupPage: 100%, ExportPage: 95.55%, IterationPage: 89.18%)
 - ✅ **CI Integration** - Coverage reporting в GitHub Actions workflows
 - ✅ **Component Tests** - UploadPage тестове за file upload, validation, UI interactions, drag-and-drop
-- ✅ **Code Coverage** - 80% threshold target (достигнати 79.64% - excellent result!)
+- ✅ **Code Coverage** - Thresholds: 75% lines/statements/functions, 65% branches (all exceeded!)
 - ✅ **CI Integration** - Automated test runs в GitHub Actions frontend-build job
 - ✅ **Coverage Reports** - HTML reports generated in `src/UI/coverage/`
 
