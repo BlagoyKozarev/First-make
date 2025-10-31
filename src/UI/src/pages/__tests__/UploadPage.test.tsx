@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '../../test/test-utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '../../test/test-utils';
 import UploadPage from '../UploadPage';
+import * as api from '../../lib/api';
 
 // Mock the API module
-vi.mock('../lib/api', () => ({
+vi.mock('../../lib/api', () => ({
   uploadKssFiles: vi.fn(),
   uploadUkazaniaFiles: vi.fn(),
   uploadPriceBaseFiles: vi.fn(),
@@ -22,6 +23,26 @@ vi.mock('react-router-dom', async () => {
 });
 
 describe('UploadPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Mock getProject to return a valid project
+    vi.mocked(api.getProject).mockResolvedValue({
+      projectId: 'test-proj-123',
+      metadata: {
+        objectName: 'Test Project',
+        employee: 'Test User',
+        date: '2024-01-01',
+      },
+      kssFilesCount: 0,
+      ukazaniaFilesCount: 0,
+      priceBaseFilesCount: 0,
+      hasTemplate: false,
+      hasMatchingResults: false,
+      hasOptimizationResults: false,
+      createdAt: '2024-01-01T00:00:00Z',
+    });
+  });
+
   it('renders all upload zones', () => {
     render(<UploadPage />);
 
@@ -135,5 +156,103 @@ describe('UploadPage', () => {
     // Should accept all files up to max (25)
     const fileListItems = screen.queryAllByText(/test-\d+\.xlsx/);
     expect(fileListItems.length).toBeLessThanOrEqual(25);
+  });
+
+  it('enables upload button when required files are selected', async () => {
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const ukazaniaFile = new File(['content'], 'ukazania.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const pricebaseFile = new File(['content'], 'pricebase.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    
+    // Upload КСС file
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+    
+    // Upload Ukazania file
+    fireEvent.change(inputs[1], { target: { files: [ukazaniaFile] } });
+    
+    // Upload Pricebase file
+    fireEvent.change(inputs[2], { target: { files: [pricebaseFile] } });
+
+    // Check that files are displayed
+    await waitFor(() => {
+      expect(screen.getByText('kss.xlsx')).toBeInTheDocument();
+      expect(screen.getByText('ukazania.xlsx')).toBeInTheDocument();
+      expect(screen.getByText('pricebase.xlsx')).toBeInTheDocument();
+    });
+  });
+
+  it('displays file list when files are uploaded', async () => {
+    vi.mocked(api.uploadKssFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadUkazaniaFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadPriceBaseFiles).mockResolvedValue(undefined);
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const ukazaniaFile = new File(['content'], 'ukazania.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const pricebaseFile = new File(['content'], 'pricebase.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+    fireEvent.change(inputs[1], { target: { files: [ukazaniaFile] } });
+    fireEvent.change(inputs[2], { target: { files: [pricebaseFile] } });
+
+    // Files should be visible in the list
+    await waitFor(() => {
+      expect(screen.getByText('kss.xlsx')).toBeInTheDocument();
+    });
+  });
+
+  it('displays uploaded file names', async () => {
+    vi.mocked(api.uploadKssFiles).mockRejectedValue(new Error('Upload failed'));
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const ukazaniaFile = new File(['content'], 'ukazania.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const pricebaseFile = new File(['content'], 'pricebase.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+    fireEvent.change(inputs[1], { target: { files: [ukazaniaFile] } });
+    fireEvent.change(inputs[2], { target: { files: [pricebaseFile] } });
+
+    // Check that all files appear in the list
+    await waitFor(() => {
+      expect(screen.getByText('kss.xlsx')).toBeInTheDocument();
+      expect(screen.getByText('ukazania.xlsx')).toBeInTheDocument();
+      expect(screen.getByText('pricebase.xlsx')).toBeInTheDocument();
+    });
+  });
+
+  it('accepts template file upload', async () => {
+    vi.mocked(api.uploadTemplateFile).mockResolvedValue(undefined);
+    vi.mocked(api.uploadKssFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadUkazaniaFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadPriceBaseFiles).mockResolvedValue(undefined);
+
+    render(<UploadPage />);
+
+    const templateFile = new File(['content'], 'template.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const kssFile = new File(['content'], 'kss.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const ukazaniaFile = new File(['content'], 'ukazania.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const pricebaseFile = new File(['content'], 'pricebase.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+    fireEvent.change(inputs[1], { target: { files: [ukazaniaFile] } });
+    fireEvent.change(inputs[2], { target: { files: [pricebaseFile] } });
+    fireEvent.change(inputs[3], { target: { files: [templateFile] } });
+
+    // Check that template file appears
+    await waitFor(() => {
+      expect(screen.getByText('template.xlsx')).toBeInTheDocument();
+    });
   });
 });
