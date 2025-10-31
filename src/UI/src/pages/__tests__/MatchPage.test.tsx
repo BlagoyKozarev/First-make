@@ -407,4 +407,26 @@ describe('MatchPage', () => {
       expect(screen.getByText(/30/)).toBeInTheDocument(); // Unmatched
     });
   });
+
+  it('shows success message when all items are matched', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-project-123');
+
+    const mockStats: api.MatchStatistics = {
+      totalItems: 100,
+      matchedItems: 100,
+      unmatchedItems: 0,
+      uniquePositions: 100,
+      averageScore: 0.95,
+    };
+
+    vi.mocked(api.triggerMatching).mockResolvedValue(mockStats);
+    vi.mocked(api.getUnmatchedCandidates).mockResolvedValue([]);
+
+    render(<MatchPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Всички позиции са съпоставени!/i)).toBeInTheDocument();
+    });
+  });
 });
+

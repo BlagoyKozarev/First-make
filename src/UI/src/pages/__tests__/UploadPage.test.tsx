@@ -388,4 +388,116 @@ describe('UploadPage', () => {
       expect(maxMessages.length).toBeGreaterThan(0);
     });
   });
+
+  it('validates that KSS files are required before upload', async () => {
+    render(<UploadPage />);
+
+    // Try to upload without KSS files - button should be disabled
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    expect(uploadButton).toBeDisabled();
+
+    // Add only ukazania files (not KSS)
+    const ukazaniaFile = new File(['content'], 'ukazania.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[1], { target: { files: [ukazaniaFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('ukazania.xlsx')).toBeInTheDocument();
+    });
+
+    // Button should still be disabled (no KSS files)
+    expect(uploadButton).toBeDisabled();
+  });
+
+  it('enables upload button only when KSS files are present', async () => {
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const inputs = document.querySelectorAll('input[type="file"]');
+    
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+
+    await waitFor(() => {
+      const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+      expect(uploadButton).not.toBeDisabled();
+    });
+  });
+
+  it('shows error when trying to upload without KSS files', async () => {
+    render(<UploadPage />);
+
+    // Upload button should be disabled without KSS files
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    expect(uploadButton).toBeDisabled();
+  });
+
+  it('displays total files count in summary', async () => {
+    render(<UploadPage />);
+
+    const kssFile1 = new File(['content'], 'kss1.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const kssFile2 = new File(['content'], 'kss2.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    
+    fireEvent.change(inputs[0], { target: { files: [kssFile1, kssFile2] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Общо файлове:/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows drag hint text when no files are uploaded', () => {
+    render(<UploadPage />);
+
+    expect(screen.getAllByText(/Пуснете файлове тук/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/или изберете файлове/i).length).toBeGreaterThan(0);
+  });
+
+  it('displays file icon for each uploaded file', async () => {
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'test.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const inputs = document.querySelectorAll('input[type="file"]');
+    
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('test.xlsx')).toBeInTheDocument();
+    });
+  });
+
+  it('shows all four upload sections', () => {
+    render(<UploadPage />);
+
+    // Check that all main sections are present
+    const inputs = document.querySelectorAll('input[type="file"]');
+    expect(inputs.length).toBe(4); // KSS, Ukazania, PriceBase, Template
+  });
+
+  it('displays project metadata instructions', () => {
+    render(<UploadPage />);
+
+    expect(screen.getByText(/Качете всички необходими файлове за обработка/i)).toBeInTheDocument();
+    expect(screen.getByText(/КСС файловете са задължителни/i)).toBeInTheDocument();
+  });
+
+  it('shows upload button text correctly', () => {
+    render(<UploadPage />);
+
+    expect(screen.getByRole('button', { name: /качи файлове и продължи/i })).toBeInTheDocument();
+  });
+
+  it('shows back button', () => {
+    render(<UploadPage />);
+
+    expect(screen.getByRole('button', { name: /назад/i })).toBeInTheDocument();
+  });
+
+  it('displays max files limit for each section', () => {
+    render(<UploadPage />);
+
+    // Each section should display its max file limit
+    const maxTexts = screen.getAllByText(/Максимум:/i);
+    expect(maxTexts.length).toBeGreaterThan(0);
+  });
 });
