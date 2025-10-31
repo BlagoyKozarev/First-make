@@ -224,7 +224,9 @@ src/
 
 ## 🧪 Testing Guidelines
 
-### Unit Tests
+### Backend Tests (.NET)
+
+#### Unit Tests
 
 - **Framework**: xUnit
 - **Coverage**: Minimum 80% за Core.Engine
@@ -247,7 +249,7 @@ public void Match_WhenExactMatch_ReturnsScore100()
 }
 ```
 
-### Integration Tests
+#### Integration Tests
 
 ```csharp
 [Fact]
@@ -267,7 +269,7 @@ public async Task Optimize_ValidRequest_ReturnsOptimizedCoefficients()
 }
 ```
 
-### Running Tests
+#### Running Backend Tests
 
 ```bash
 # All tests
@@ -281,6 +283,184 @@ dotnet test --collect:"XPlat Code Coverage"
 
 # Watch mode
 dotnet watch test
+```
+
+### Frontend Tests (React)
+
+#### Component Tests
+
+- **Framework**: Vitest + React Testing Library
+- **Coverage**: Minimum 80% для components и pages
+- **Naming**: Descriptive test names in Bulgarian or English
+- **Pattern**: Arrange-Act-Assert
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '../../test/test-utils';
+import SetupPage from '../SetupPage';
+
+describe('SetupPage', () => {
+  it('renders the setup form with all fields', () => {
+    // Arrange
+    render(<SetupPage />);
+
+    // Assert
+    expect(screen.getByLabelText(/Име на обект/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Служител/i)).toBeInTheDocument();
+  });
+
+  it('validates empty required fields', async () => {
+    // Arrange
+    render(<SetupPage />);
+    const submitButton = screen.getByRole('button', { name: /Създай/i });
+
+    // Act
+    fireEvent.click(submitButton);
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText(/задължително/i)).toBeInTheDocument();
+    });
+  });
+});
+```
+
+#### Testing Best Practices
+
+**1. Test User Behavior, Not Implementation**
+```typescript
+// ✅ Good - tests user interaction
+it('submits form when all fields are filled', async () => {
+  render(<MyForm />);
+  
+  fireEvent.change(screen.getByLabelText(/Name/i), { target: { value: 'John' } });
+  fireEvent.click(screen.getByRole('button', { name: /Submit/i }));
+  
+  await waitFor(() => {
+    expect(mockSubmit).toHaveBeenCalledWith({ name: 'John' });
+  });
+});
+
+// ❌ Bad - tests implementation details
+it('updates state when input changes', () => {
+  const { result } = renderHook(() => useState(''));
+  // Don't test React internals
+});
+```
+
+**2. Use Semantic Queries**
+```typescript
+// ✅ Good - accessible queries
+screen.getByRole('button', { name: /Submit/i })
+screen.getByLabelText(/Email/i)
+screen.getByText(/Welcome/i)
+
+// ❌ Bad - fragile queries
+screen.getByClassName('submit-btn')
+screen.getByTestId('email-input')
+```
+
+**3. Mock External Dependencies**
+```typescript
+// Mock API calls
+vi.mock('../lib/api', () => ({
+  createProject: vi.fn(),
+  getProject: vi.fn(),
+}));
+
+// Mock router
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => ({
+  ...await vi.importActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
+}));
+```
+
+**4. Test Loading and Error States**
+```typescript
+it('shows loading spinner while submitting', async () => {
+  vi.mocked(api.submit).mockImplementation(
+    () => new Promise(resolve => setTimeout(resolve, 100))
+  );
+  
+  render(<MyForm />);
+  fireEvent.click(screen.getByRole('button'));
+  
+  expect(screen.getByRole('status')).toBeInTheDocument(); // spinner
+});
+
+it('displays error message on failure', async () => {
+  vi.mocked(api.submit).mockRejectedValue(new Error('Failed'));
+  
+  render(<MyForm />);
+  fireEvent.click(screen.getByRole('button'));
+  
+  await waitFor(() => {
+    expect(screen.getByText(/Failed/i)).toBeInTheDocument();
+  });
+});
+```
+
+#### Running Frontend Tests
+
+```bash
+cd src/UI
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run with coverage
+npm run test:coverage
+
+# Run tests with UI
+npm run test:ui
+
+# Run specific test file
+npm test -- UploadPage
+
+# Update snapshots
+npm test -- -u
+```
+
+#### Coverage Thresholds
+
+Frontend code coverage is configured with 80% thresholds:
+- Lines: 80%
+- Branches: 80%
+- Functions: 80%
+- Statements: 80%
+
+View coverage report:
+```bash
+npm run test:coverage
+# Open src/UI/coverage/index.html in browser
+```
+
+### Test Organization
+
+```
+tests/
+├── Core.Engine.Tests/          # Backend unit tests
+│   ├── FuzzyMatcherTests.cs
+│   ├── LpOptimizerTests.cs
+│   └── ...
+├── Performance/                 # Performance benchmarks
+│   ├── FuzzyMatcherBenchmarks.cs
+│   └── ...
+src/UI/src/
+├── pages/__tests__/            # Page component tests
+│   ├── SetupPage.test.tsx
+│   ├── UploadPage.test.tsx
+│   └── ...
+├── components/__tests__/       # Shared component tests
+│   ├── ConfirmDialog.test.tsx
+│   └── ...
+└── test/                       # Test utilities
+    ├── setup.ts               # Global test setup
+    └── test-utils.tsx         # Custom render helpers
 ```
 
 ## 📥 Pull Request Process
