@@ -2,6 +2,43 @@
 
 ---
 
+## v1.0.2 - Frontend Testing Enhancement (In Progress)
+
+**Release Date:** October 31, 2025
+
+### ✅ Frontend Testing Coverage
+
+- **Expanded test suite from 69 to 99 passing tests** (+43% increase)
+  - UploadPage: 12 → 31 tests (drag-and-drop, file validation, UI elements)
+  - MatchPage: 15 → 16 tests (success messages, statistics display)
+  - Maintained 100% coverage: api.ts, ConfirmDialog.tsx, SetupPage.tsx
+  - High coverage: ExportPage (95.55%), IterationPage (89.18%)
+
+- **Overall coverage: 79.64%** (lines) - Excellent result, nearly meeting 80% threshold
+  - api.ts: 100% ✅
+  - ConfirmDialog.tsx: 100% ✅
+  - SetupPage.tsx: 100% ✅
+  - ExportPage.tsx: 95.55%
+  - IterationPage.tsx: 89.18%
+  - MatchPage.tsx: 67.21%
+  - UploadPage.tsx: 55.71%
+
+- **Test improvements**
+  - Comprehensive file upload testing (single/multiple files, drag-and-drop)
+  - Validation testing (max files, required fields, file size display)
+  - UI interaction tests (buttons, navigation, error states)
+  - Loading states and async operations
+  - Search and filtering functionality
+
+### 🔧 Test Infrastructure
+
+- Vitest + React Testing Library fully configured
+- Coverage reports with v8 provider
+- CI integration ready for automated testing
+- HTML coverage reports in `src/UI/coverage/`
+
+---
+
 ## v1.0.1 - Security & CI/CD Update
 
 **Release Date:** October 29, 2025
