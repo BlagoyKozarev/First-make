@@ -92,6 +92,7 @@ jobs:
       
     - name: Run tests with coverage
       run: npm run test:coverage
+      # Enforces thresholds: 85% lines, 75% branches, 80% functions, 85% statements
       
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4

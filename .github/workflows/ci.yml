@@ -55,6 +55,10 @@ jobs:
         working-directory: src/UI
         run: npm run lint
 
+      - name: Test with Coverage (UI)
+        working-directory: src/UI
+        run: npm test -- --run --coverage
+
       - name: Build (UI)
         working-directory: src/UI
         run: npm run build

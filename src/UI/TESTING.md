@@ -253,22 +253,26 @@ const mockResult = {
 
 ## Coverage Thresholds
 
-Configured in `vitest.config.ts`:
+The project enforces minimum coverage thresholds via Vitest:
 
 ```typescript
 coverage: {
-  provider: 'v8',
-  reporter: ['text', 'html', 'lcov'],
   thresholds: {
-    lines: 75,
-    branches: 65,
-    functions: 75,
-    statements: 75,
+    lines: 85,       // Raised from 75 (Nov 2025)
+    branches: 75,    // Raised from 65 (Nov 2025)
+    functions: 80,   // Raised from 75 (Nov 2025)
+    statements: 85,  // Raised from 75 (Nov 2025)
   },
 }
 ```
 
-**Current Status:** 88.92% lines ✅ (exceeds 75% threshold by 13.92%!)
+**Current Status:** 93.92% lines ✅ (exceeds 85% threshold by 8.92%!)
+
+**Rationale for threshold increase:**
+- Previous thresholds (75/65/75/75) exceeded by 14-19% after comprehensive test improvements
+- New thresholds (85/75/80/85) maintain quality bar with reasonable headroom (4-9%)
+- Prevents coverage regressions in future PRs while allowing for refactoring
+- Updated November 2, 2025 as part of v1.0.2 testing enhancement
 
 ## Best Practices
 

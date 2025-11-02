@@ -52,13 +52,27 @@
 
 **Резултат**: +21.49% coverage за MatchPage, +14.28% общо lines coverage, +13.10% branches
 
+### 🎯 CI/CD Quality Gates - Raised Thresholds
+
+- **Updated coverage thresholds** to match current high performance:
+  - Lines: 75% → **85%** (current: 93.92%, +8.92% buffer)
+  - Branches: 65% → **75%** (current: 79.76%, +4.76% buffer)
+  - Functions: 75% → **80%** (current: 88.23%, +8.23% buffer)
+  - Statements: 75% → **85%** (current: 92.43%, +7.43% buffer)
+
+- **Rationale**: 
+  - Previous thresholds exceeded by 14-19% - too permissive
+  - New thresholds maintain quality bar while allowing reasonable headroom (4-9%)
+  - Prevents coverage regressions in future PRs
+  - All files currently exceed new minimums
+
 ### 🔧 Test Infrastructure
 
 - Vitest + React Testing Library fully configured
 - Coverage reports with v8 provider
 - CI integration ready for automated testing
 - HTML coverage reports in `src/UI/coverage/`
-- Thresholds: 75% lines/statements/functions, 65% branches (all exceeded by wide margins!)
+- **Enforced thresholds**: 85/75/80/85 (lines/branches/functions/statements)
 
 ---
 
