@@ -124,6 +124,12 @@
   - Tests now only run in CI/CD pipelines (where they have access to full source)
   - Production images remain lean without test overhead
 
+- **Fixed CI workflow Node.js version** (`.github/workflows/ci.yml`)
+  - Issue: Tests failing with `No such built-in module: node:inspector/promises`
+  - Root cause: Vitest 4.0.5 requires Node.js 18.20+ or 20.x, but ci.yml used Node 18
+  - Solution: Updated to Node.js 20.x (matching ci-cd.yml)
+  - All workflows now use consistent Node version
+
 ---
 
 ## v1.0.1 - Security & CI/CD Update
