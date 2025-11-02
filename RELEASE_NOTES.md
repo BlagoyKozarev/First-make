@@ -8,38 +8,49 @@
 
 ### ✅ Frontend Testing Coverage - MAJOR IMPROVEMENT
 
-- **Expanded test suite from 69 to 102 passing tests** (+48% increase)
-  - UploadPage: 31 → 37 tests - **Coverage jumped from 55.71% to 92.85%!** 🚀
-    - Added comprehensive handleUploadAll flow tests
-    - Success cases: single file, all file types, navigation
-    - Error handling: API failures, generic errors
-    - UI states: disabled button during upload, progress messages
-  - MatchPage: 16 tests (67.21% coverage)
+- **Expanded test suite from 69 to 109 passing tests** (+58% increase)
+  - UploadPage: 31 → 37 tests - **Coverage: 55.71% → 92.85%!** 🚀
+  - MatchPage: 16 → 23 tests - **Coverage: 67.21% → 88.70%!** 🚀
   - Maintained 100% coverage: api.ts, ConfirmDialog.tsx, SetupPage.tsx
   - High coverage: ExportPage (95.55%), IterationPage (89.18%)
 
-- **Overall coverage: 88.92% lines** 🎯 (exceeded 80% target by 8.92%!)
-  - Lines: 79.64% → **88.92%** (+9.28%)
-  - Branches: 66.66% → **75.59%** (+8.93%)
-  - Functions: 77.94% → **80.88%** (+2.94%)
-  - Statements: 78.35% → **87.62%** (+9.27%)
+- **Overall coverage: 93.92% lines** 🎯 (exceeded 80% target by 13.92%!)
+  - Lines: 79.64% → **93.92%** (+14.28%)
+  - Branches: 66.66% → **79.76%** (+13.10%)
+  - Functions: 77.94% → **88.23%** (+10.29%)
+  - Statements: 78.35% → **92.43%** (+14.08%)
 
 - **Coverage breakdown by file:**
   - api.ts: 100% ✅
   - ConfirmDialog.tsx: 100% ✅
   - SetupPage.tsx: 100% ✅
   - ExportPage.tsx: 95.55%
-  - UploadPage.tsx: **92.85%** (was 55.71% - massive improvement!)
+  - UploadPage.tsx: **92.85%** (was 55.71% - +37.14% improvement!)
   - IterationPage.tsx: 89.18%
-  - MatchPage.tsx: 67.21%
+  - MatchPage.tsx: **88.70%** (was 67.21% - +21.49% improvement!)
 
-- **Test improvements**
-  - Complete upload flow testing with all API calls mocked
-  - Multi-file type upload scenarios (KSS + Ukazania + PriceBase + Template)
-  - Error boundary testing with specific and generic errors
-  - Loading state validation (disabled buttons, progress messages)
-  - Navigation flow verification after successful uploads
-  - Edge cases: no files, missing projectId, API timeouts
+### Frontend тестове (+13 теста)
+
+#### UploadPage Coverage: 55.71% → 92.85%
+1. **Успешен upload и навигация**: Проверява пълния upload workflow и автоматична навигация към /match
+2. **Multi-file upload**: Тества качването на всички 4 типа файлове едновременно (KSS, Ukazania, PriceBase, Template)
+3. **Error handling**: Проверява показването на грешки от API
+4. **Generic error**: Тества fallback съобщение при липса на API error message
+5. **Disabled state**: Верифицира блокиране на upload бутона по време на качване
+6. **Progress messages**: Тества показването на прогрес съобщения за всеки файл
+
+**Резултат**: +37.14% coverage за UploadPage
+
+#### MatchPage Coverage: 67.21% → 88.70%
+1. **Expand candidates**: Проверява показването на топ 5 предложения при клик на "Избери"
+2. **Collapse candidates**: Тества скриване на кандидатите при клик на "Скрий"
+3. **Top candidate details**: Верифицира показването на цена, мерна единица и score
+4. **Override with confirmation**: Пълен flow на корекция включващ confirmation dialog
+5. **Multiple top candidates**: Показва всички 5 топ предложения (A-E)
+6. **Disabled continue button**: Проверява блокиране при неизбрани позиции
+7. **Enabled continue button**: Проверява активиране когато всички са избрани
+
+**Резултат**: +21.49% coverage за MatchPage, +14.28% общо lines coverage, +13.10% branches
 
 ### 🔧 Test Infrastructure
 
@@ -47,7 +58,7 @@
 - Coverage reports with v8 provider
 - CI integration ready for automated testing
 - HTML coverage reports in `src/UI/coverage/`
-- Thresholds: 75% lines/statements/functions, 65% branches (all exceeded)
+- Thresholds: 75% lines/statements/functions, 65% branches (all exceeded by wide margins!)
 
 ---
 

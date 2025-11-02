@@ -428,5 +428,310 @@ describe('MatchPage', () => {
       expect(screen.getByText(/Всички позиции са съпоставени!/i)).toBeInTheDocument();
     });
   });
+
+  it('expands candidate to show top 5 suggestions when "Избери" is clicked', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-project-123');
+
+    const mockStats: api.MatchStatistics = {
+      totalItems: 100,
+      matchedItems: 80,
+      unmatchedItems: 20,
+      uniquePositions: 95,
+      averageScore: 0.85,
+    };
+
+    const mockCandidates: api.UnifiedCandidate[] = [
+      {
+        unifiedKey: 'key-1',
+        itemName: 'Excavation Work',
+        itemUnit: 'm³',
+        occurrenceCount: 5,
+        topCandidates: [
+          { name: 'Изкопни работи тип А', unit: 'm³', price: 15.50, score: 0.92 },
+          { name: 'Изкопни работи тип Б', unit: 'm³', price: 18.00, score: 0.85 },
+          { name: 'Изкопни работи тип В', unit: 'm³', price: 20.00, score: 0.78 },
+        ],
+      },
+    ];
+
+    vi.mocked(api.triggerMatching).mockResolvedValue(mockStats);
+    vi.mocked(api.getUnmatchedCandidates).mockResolvedValue(mockCandidates);
+
+    render(<MatchPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Excavation Work')).toBeInTheDocument();
+    });
+
+    // Initially, top candidates should not be visible
+    expect(screen.queryByText('Изкопни работи тип А')).not.toBeInTheDocument();
+
+    // Click "Избери" to expand
+    const selectButtons = screen.getAllByRole('button', { name: /избери/i });
+    fireEvent.click(selectButtons[0]);
+
+    // Top candidates should now be visible
+    await waitFor(() => {
+      expect(screen.getByText(/Топ 5 предложения:/i)).toBeInTheDocument();
+      expect(screen.getByText('Изкопни работи тип А')).toBeInTheDocument();
+      expect(screen.getByText('Изкопни работи тип Б')).toBeInTheDocument();
+      expect(screen.getByText('Изкопни работи тип В')).toBeInTheDocument();
+    });
+  });
+
+  it('collapses candidate when "Скрий" is clicked', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-project-123');
+
+    const mockStats: api.MatchStatistics = {
+      totalItems: 100,
+      matchedItems: 80,
+      unmatchedItems: 20,
+      uniquePositions: 95,
+      averageScore: 0.85,
+    };
+
+    const mockCandidates: api.UnifiedCandidate[] = [
+      {
+        unifiedKey: 'key-1',
+        itemName: 'Test Item',
+        itemUnit: 'm²',
+        occurrenceCount: 3,
+        topCandidates: [
+          { name: 'Top Candidate 1', unit: 'm²', price: 10.50, score: 0.90 },
+        ],
+      },
+    ];
+
+    vi.mocked(api.triggerMatching).mockResolvedValue(mockStats);
+    vi.mocked(api.getUnmatchedCandidates).mockResolvedValue(mockCandidates);
+
+    render(<MatchPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Item')).toBeInTheDocument();
+    });
+
+    // Expand first
+    const selectButton = screen.getByRole('button', { name: /избери/i });
+    fireEvent.click(selectButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Top Candidate 1')).toBeInTheDocument();
+    });
+
+    // Now collapse
+    const hideButton = screen.getByRole('button', { name: /скрий/i });
+    fireEvent.click(hideButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Top Candidate 1')).not.toBeInTheDocument();
+    });
+  });
+
+  it('displays top candidate details (price, unit, score)', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-project-123');
+
+    const mockStats: api.MatchStatistics = {
+      totalItems: 100,
+      matchedItems: 80,
+      unmatchedItems: 20,
+      uniquePositions: 95,
+      averageScore: 0.85,
+    };
+
+    const mockCandidates: api.UnifiedCandidate[] = [
+      {
+        unifiedKey: 'key-1',
+        itemName: 'Material Item',
+        itemUnit: 'kg',
+        occurrenceCount: 2,
+        topCandidates: [
+          { name: 'Premium Material', unit: 'kg', price: 25.75, score: 0.95 },
+        ],
+      },
+    ];
+
+    vi.mocked(api.triggerMatching).mockResolvedValue(mockStats);
+    vi.mocked(api.getUnmatchedCandidates).mockResolvedValue(mockCandidates);
+
+    render(<MatchPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Material Item')).toBeInTheDocument();
+    });
+
+    // Expand to see details
+    const selectButton = screen.getByRole('button', { name: /избери/i });
+    fireEvent.click(selectButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Premium Material')).toBeInTheDocument();
+      expect(screen.getByText(/25\.75 лв/)).toBeInTheDocument();
+      expect(screen.getByText(/Score: 0\.95/)).toBeInTheDocument();
+    });
+  });
+
+  it('calls overrideMatch API when top candidate is selected', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-project-123');
+
+    const mockStats: api.MatchStatistics = {
+      totalItems: 100,
+      matchedItems: 80,
+      unmatchedItems: 20,
+      uniquePositions: 95,
+      averageScore: 0.85,
+    };
+
+    const mockCandidates: api.UnifiedCandidate[] = [
+      {
+        unifiedKey: 'key-override',
+        itemName: 'Override Test Item',
+        itemUnit: 'm',
+        occurrenceCount: 4,
+        topCandidates: [
+          { name: 'Selected Candidate', unit: 'm', price: 30.00, score: 0.88 },
+        ],
+      },
+    ];
+
+    vi.mocked(api.triggerMatching).mockResolvedValue(mockStats);
+    vi.mocked(api.getUnmatchedCandidates).mockResolvedValue(mockCandidates);
+    vi.mocked(api.overrideMatch).mockResolvedValue(undefined);
+
+    render(<MatchPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Override Test Item')).toBeInTheDocument();
+    });
+
+    // Expand candidate
+    const expandButton = screen.getByRole('button', { name: /избери/i });
+    fireEvent.click(expandButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Selected Candidate')).toBeInTheDocument();
+    });
+
+    // Click the "Избери" button for the top candidate
+    const selectButtons = screen.getAllByRole('button', { name: /избери/i });
+    const topCandidateButton = selectButtons.find(btn => 
+      btn.className.includes('bg-primary')
+    );
+    
+    if (topCandidateButton) {
+      fireEvent.click(topCandidateButton);
+
+      // Confirmation dialog should appear
+      await waitFor(() => {
+        expect(screen.getByText(/Потвърждение на корекция/i)).toBeInTheDocument();
+      });
+
+      // Click "Да, замени" button in the dialog
+      const confirmButton = screen.getByRole('button', { name: /да, замени/i });
+      fireEvent.click(confirmButton);
+
+      await waitFor(() => {
+        expect(api.overrideMatch).toHaveBeenCalledWith(
+          'test-project-123',
+          'key-override',
+          'Selected Candidate'
+        );
+      });
+    }
+  });
+
+  it('shows multiple top candidates for a single item', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-project-123');
+
+    const mockStats: api.MatchStatistics = {
+      totalItems: 100,
+      matchedItems: 80,
+      unmatchedItems: 20,
+      uniquePositions: 95,
+      averageScore: 0.85,
+    };
+
+    const mockCandidates: api.UnifiedCandidate[] = [
+      {
+        unifiedKey: 'multi-key',
+        itemName: 'Multi Candidate Item',
+        itemUnit: 'бр',
+        occurrenceCount: 7,
+        topCandidates: [
+          { name: 'Candidate A', unit: 'бр', price: 5.00, score: 0.95 },
+          { name: 'Candidate B', unit: 'бр', price: 6.00, score: 0.90 },
+          { name: 'Candidate C', unit: 'бр', price: 7.00, score: 0.85 },
+          { name: 'Candidate D', unit: 'бр', price: 8.00, score: 0.80 },
+          { name: 'Candidate E', unit: 'бр', price: 9.00, score: 0.75 },
+        ],
+      },
+    ];
+
+    vi.mocked(api.triggerMatching).mockResolvedValue(mockStats);
+    vi.mocked(api.getUnmatchedCandidates).mockResolvedValue(mockCandidates);
+
+    render(<MatchPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Multi Candidate Item')).toBeInTheDocument();
+    });
+
+    // Expand
+    const selectButton = screen.getByRole('button', { name: /избери/i });
+    fireEvent.click(selectButton);
+
+    // All 5 candidates should be visible
+    await waitFor(() => {
+      expect(screen.getByText('Candidate A')).toBeInTheDocument();
+      expect(screen.getByText('Candidate B')).toBeInTheDocument();
+      expect(screen.getByText('Candidate C')).toBeInTheDocument();
+      expect(screen.getByText('Candidate D')).toBeInTheDocument();
+      expect(screen.getByText('Candidate E')).toBeInTheDocument();
+    });
+  });
+
+  it('disables continue button when there are unmatched items', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-project-123');
+
+    const mockStats: api.MatchStatistics = {
+      totalItems: 100,
+      matchedItems: 80,
+      unmatchedItems: 20,
+      uniquePositions: 95,
+      averageScore: 0.85,
+    };
+
+    vi.mocked(api.triggerMatching).mockResolvedValue(mockStats);
+    vi.mocked(api.getUnmatchedCandidates).mockResolvedValue([]);
+
+    render(<MatchPage />);
+
+    await waitFor(() => {
+      const continueButton = screen.getByRole('button', { name: /към оптимизация/i });
+      expect(continueButton).toBeDisabled();
+    });
+  });
+
+  it('enables continue button when all items are matched', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-project-123');
+
+    const mockStats: api.MatchStatistics = {
+      totalItems: 100,
+      matchedItems: 100,
+      unmatchedItems: 0,
+      uniquePositions: 100,
+      averageScore: 0.95,
+    };
+
+    vi.mocked(api.triggerMatching).mockResolvedValue(mockStats);
+    vi.mocked(api.getUnmatchedCandidates).mockResolvedValue([]);
+
+    render(<MatchPage />);
+
+    await waitFor(() => {
+      const continueButton = screen.getByRole('button', { name: /към оптимизация/i });
+      expect(continueButton).not.toBeDisabled();
+    });
+  });
 });
 

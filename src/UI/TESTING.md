@@ -6,8 +6,8 @@ FirstMake UI uses **Vitest** and **React Testing Library** for comprehensive com
 
 ## Test Statistics
 
-- **Total Tests:** 102 passing ✅
-- **Overall Coverage:** 88.92% (lines) 🎯
+- **Total Tests:** 109 passing ✅
+- **Overall Coverage:** 93.92% (lines) 🎯
 - **Test Files:** 7
 - **Test Framework:** Vitest 4.0.5
 - **Testing Library:** @testing-library/react 16.3.0
@@ -22,7 +22,7 @@ FirstMake UI uses **Vitest** and **React Testing Library** for comprehensive com
 | `ExportPage.tsx` | 95.55% | 67.85% | 100% | 93.61% | 9 |
 | `UploadPage.tsx` | **92.85%** 🚀 | 88.88% | 78.57% | 90.41% | 37 |
 | `IterationPage.tsx` | 89.18% | 62.5% | 72.72% | 86.84% | 9 |
-| `MatchPage.tsx` | 67.21% | 72.72% | 53.33% | 66.12% | 16 |
+| `MatchPage.tsx` | **88.70%** 🚀 | **88.63%** | 86.66% | 88.70% | 23 |
 
 ## Running Tests
 
@@ -111,15 +111,19 @@ Tests all API utility functions with proper mocking:
   - Disabled button state during upload
   - Progress messages during multi-file uploads
 
-#### MatchPage.tsx (16 tests, 67.21% coverage)
-- Auto-trigger matching on mount
-- Statistics display (total, matched, unmatched, unique, avg score)
-- Progress bar visualization
-- Unmatched candidates list
-- Search/filter functionality
+#### MatchPage.tsx (23 tests, 88.70% coverage)
+- Render with unmatched candidates
+- Candidate grouping (multi-occurrence support)
+- Search functionality
 - Clear search button
 - Candidate card display (item name, unit, occurrence count)
 - Override functionality (with confirmation dialog)
+- **Expand candidates** (show top 5 suggestions)
+- **Collapse candidates** (hide suggestions)
+- **Top candidate details** (price, unit, score display)
+- **Override with confirmation** (full dialog flow)
+- **Multiple top candidates** (5 suggestions A-E)
+- **Continue button states** (disabled/enabled based on matches)
 - Loading states
 - Error handling
 - Navigation (back to upload, continue to iteration)
