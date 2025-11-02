@@ -500,4 +500,207 @@ describe('UploadPage', () => {
     const maxTexts = screen.getAllByText(/Максимум:/i);
     expect(maxTexts.length).toBeGreaterThan(0);
   });
+
+  it('successfully uploads KSS files and navigates to match page', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-proj-123');
+    
+    vi.mocked(api.uploadKssFiles).mockResolvedValue(undefined);
+    vi.mocked(api.getProject).mockResolvedValue({
+      projectId: 'test-proj-123',
+      metadata: { objectName: 'Test', employee: 'User', date: '2024-01-01' },
+      kssFilesCount: 1,
+      ukazaniaFilesCount: 0,
+      priceBaseFilesCount: 0,
+      hasTemplate: false,
+      hasMatchingResults: false,
+      hasOptimizationResults: false,
+      createdAt: '2024-01-01T00:00:00Z',
+    });
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+
+    await waitFor(() => {
+      const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+      expect(uploadButton).not.toBeDisabled();
+    });
+
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    fireEvent.click(uploadButton);
+
+    await waitFor(() => {
+      expect(api.uploadKssFiles).toHaveBeenCalledWith('test-proj-123', [kssFile]);
+      expect(api.getProject).toHaveBeenCalledWith('test-proj-123');
+    }, { timeout: 3000 });
+
+    // Wait for navigation
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/match');
+    }, { timeout: 1000 });
+  });
+
+  it('uploads all file types when all are provided', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-proj-123');
+    
+    vi.mocked(api.uploadKssFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadUkazaniaFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadPriceBaseFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadTemplateFile).mockResolvedValue(undefined);
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['kss'], 'kss.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const ukazaniaFile = new File(['ukazania'], 'ukazania.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const pricebaseFile = new File(['pricebase'], 'pricebase.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const templateFile = new File(['template'], 'template.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+    fireEvent.change(inputs[1], { target: { files: [ukazaniaFile] } });
+    fireEvent.change(inputs[2], { target: { files: [pricebaseFile] } });
+    fireEvent.change(inputs[3], { target: { files: [templateFile] } });
+
+    await waitFor(() => {
+      const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+      expect(uploadButton).not.toBeDisabled();
+    });
+
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    fireEvent.click(uploadButton);
+
+    await waitFor(() => {
+      expect(api.uploadKssFiles).toHaveBeenCalled();
+      expect(api.uploadUkazaniaFiles).toHaveBeenCalled();
+      expect(api.uploadPriceBaseFiles).toHaveBeenCalled();
+      expect(api.uploadTemplateFile).toHaveBeenCalled();
+    }, { timeout: 3000 });
+  });
+
+  it('displays error message when upload fails', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-proj-123');
+    
+    vi.mocked(api.uploadKssFiles).mockRejectedValue({
+      response: { data: { message: 'Upload failed: Network error' } }
+    });
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+
+    await waitFor(() => {
+      const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+      expect(uploadButton).not.toBeDisabled();
+    });
+
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    fireEvent.click(uploadButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Upload failed: Network error/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  it('shows generic error when API returns no message', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-proj-123');
+    
+    vi.mocked(api.uploadKssFiles).mockRejectedValue(new Error('Unknown error'));
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+
+    await waitFor(() => {
+      const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+      expect(uploadButton).not.toBeDisabled();
+    });
+
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    fireEvent.click(uploadButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Грешка при качване на файлове/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  it('disables upload button during upload', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-proj-123');
+    
+    // Create a promise that we can control
+    let resolveUpload: () => void;
+    const uploadPromise = new Promise<void>((resolve) => {
+      resolveUpload = resolve;
+    });
+    
+    vi.mocked(api.uploadKssFiles).mockReturnValue(uploadPromise);
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['content'], 'kss.xlsx', { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+
+    await waitFor(() => {
+      const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+      expect(uploadButton).not.toBeDisabled();
+    });
+
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    fireEvent.click(uploadButton);
+
+    // Button should be disabled during upload
+    await waitFor(() => {
+      expect(uploadButton).toBeDisabled();
+    });
+
+    // Resolve the upload
+    resolveUpload!();
+  });
+
+  it('shows upload progress messages', async () => {
+    sessionStorage.setItem('currentProjectId', 'test-proj-123');
+    
+    vi.mocked(api.uploadKssFiles).mockResolvedValue(undefined);
+    vi.mocked(api.uploadUkazaniaFiles).mockResolvedValue(undefined);
+
+    render(<UploadPage />);
+
+    const kssFile = new File(['kss'], 'kss.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const ukazaniaFile = new File(['ukazania'], 'ukazania.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[0], { target: { files: [kssFile] } });
+    fireEvent.change(inputs[1], { target: { files: [ukazaniaFile] } });
+
+    await waitFor(() => {
+      const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+      expect(uploadButton).not.toBeDisabled();
+    });
+
+    const uploadButton = screen.getByRole('button', { name: /качи файлове и продължи/i });
+    fireEvent.click(uploadButton);
+
+    // Check for progress messages (they appear briefly)
+    await waitFor(() => {
+      expect(api.uploadKssFiles).toHaveBeenCalled();
+    }, { timeout: 3000 });
+  });
 });

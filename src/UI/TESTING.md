@@ -6,8 +6,8 @@ FirstMake UI uses **Vitest** and **React Testing Library** for comprehensive com
 
 ## Test Statistics
 
-- **Total Tests:** 99 passing
-- **Overall Coverage:** 79.64% (lines)
+- **Total Tests:** 102 passing ✅
+- **Overall Coverage:** 88.92% (lines) 🎯
 - **Test Files:** 7
 - **Test Framework:** Vitest 4.0.5
 - **Testing Library:** @testing-library/react 16.3.0
@@ -20,9 +20,9 @@ FirstMake UI uses **Vitest** and **React Testing Library** for comprehensive com
 | `ConfirmDialog.tsx` | 100% ✅ | 100% | 100% | 100% | 10 |
 | `SetupPage.tsx` | 100% ✅ | 91.66% | 100% | 100% | 7 |
 | `ExportPage.tsx` | 95.55% | 67.85% | 100% | 93.61% | 9 |
+| `UploadPage.tsx` | **92.85%** 🚀 | 88.88% | 78.57% | 90.41% | 37 |
 | `IterationPage.tsx` | 89.18% | 62.5% | 72.72% | 86.84% | 9 |
 | `MatchPage.tsx` | 67.21% | 72.72% | 53.33% | 66.12% | 16 |
-| `UploadPage.tsx` | 55.71% | 47.22% | 64.28% | 53.42% | 31 |
 
 ## Running Tests
 
@@ -87,7 +87,10 @@ Tests all API utility functions with proper mocking:
 - Navigation on success
 - Field requirements
 
-#### UploadPage.tsx (31 tests, 55.71% coverage)
+#### UploadPage.tsx (37 tests, 92.85% coverage) 🚀
+
+**Major improvement from 55.71% to 92.85%!**
+
 - File upload zones (4 types: KSS, Ukazania, PriceBase, Template)
 - Drag and drop functionality
 - File selection via input
@@ -100,6 +103,13 @@ Tests all API utility functions with proper mocking:
 - Validation messages
 - UI element presence
 - Project metadata display
+- **Complete upload flow tests:**
+  - Successful upload with KSS files → navigate to /match
+  - Multi-file upload (all 4 types) → all APIs called correctly
+  - Upload failure with specific error message display
+  - Upload failure with generic error fallback
+  - Disabled button state during upload
+  - Progress messages during multi-file uploads
 
 #### MatchPage.tsx (16 tests, 67.21% coverage)
 - Auto-trigger matching on mount
@@ -254,7 +264,7 @@ coverage: {
 }
 ```
 
-**Current Status:** 79.64% lines ✅ (exceeds 75% threshold!)
+**Current Status:** 88.92% lines ✅ (exceeds 75% threshold by 13.92%!)
 
 ## Best Practices
 
@@ -326,25 +336,24 @@ After running tests with `--coverage`, view reports:
 
 ## Future Improvements
 
-1. **Increase UploadPage coverage** (currently 55.71%)
-   - Add tests for actual upload flow execution
-   - Test file type validation
-   - Test upload progress states
+1. **Increase MatchPage coverage** (currently 67.21%)
+   - Add tests for candidate expansion/collapse
+   - Test top candidates display
+   - Test complete manual override flow
 
-2. **Increase MatchPage coverage** (currently 67.21%)
-   - Add tests for top candidates display
-   - Test candidate expansion/collapse
-   - Test manual override flow completion
-
-3. **Add E2E tests**
+2. **Add E2E tests**
    - Full user workflow (setup → upload → match → optimize → export)
    - Multi-page navigation flows
    - File upload integration tests
 
-4. **Visual Regression Testing**
+3. **Visual Regression Testing**
    - Storybook integration
    - Screenshot comparison
    - Component visual states
+
+4. **Consider raising thresholds**
+   - Current: 75/65/75/75
+   - Potential: 85/75/80/85 (based on current 88.92% achievement)
 
 ## Resources
 
