@@ -6,6 +6,8 @@
 
 **Release Date:** November 2, 2025
 
+**Status:** ✅ Released (Tag: v1.0.2)
+
 ### ✅ Frontend Testing Coverage - MAJOR IMPROVEMENT
 
 - **Expanded test suite from 69 to 109 passing tests** (+58% increase)
@@ -112,6 +114,15 @@
 - **140 passing tests** across frontend and backend
 - Zero test failures
 - CI pipelines validated and green ✅
+
+### 🐛 Bug Fixes
+
+- **Fixed Docker build failure** (`Dockerfile`)
+  - Issue: Build failed with `"/tests": not found` error
+  - Root cause: `.dockerignore` excludes `tests/` but Dockerfile tried to copy test projects
+  - Solution: Removed test dependencies from production Docker builds
+  - Tests now only run in CI/CD pipelines (where they have access to full source)
+  - Production images remain lean without test overhead
 
 ---
 

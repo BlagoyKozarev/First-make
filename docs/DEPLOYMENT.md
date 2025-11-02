@@ -354,6 +354,12 @@ sudo systemctl reload nginx
 
 ### Docker Deployment
 
+#### Important Notes
+
+> **⚠️ Note on Test Files**: The production `Dockerfile` excludes test projects to keep images lean. 
+> Tests are run separately in CI/CD pipelines. If you encounter build errors related to `/tests` directory,
+> ensure `.dockerignore` excludes `tests/` and `Dockerfile` does not reference test projects.
+
 #### Production Docker Compose
 
 **docker-compose.prod.yml:**

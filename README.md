@@ -61,11 +61,11 @@ FirstMake Agent е **desktop приложение** за обработка на
 
 ### CI/CD Status
 - **Backend Tests**: 31 passing, 1 skipped (Python docx parser - optional)
-- **Frontend Tests**: 102 passing (React component tests with **88.92%** coverage 🎯)
+- **Frontend Tests**: 109 passing (React component tests with **93.92%** coverage 🎯)
 - **Workflows**: All green ✅
-- **Docker Images**: ghcr.io/gitraicommerce/firstmake-{api,aigateway,ui}:v1.0.1
+- **Docker Images**: ghcr.io/gitraicommerce/firstmake-{api,aigateway,ui}:v1.0.2
 
-> Tag **v1.0.1** е публикуван с пълна CI/CD automation. Вижте [SECURITY.md](docs/SECURITY.md) за security guidelines.
+> Tag **v1.0.2** е публикуван с comprehensive testing improvements. Вижте [RELEASE_NOTES.md](RELEASE_NOTES.md) за детайли.
 
 ## 🔍 Roadmap & Next Steps
 
@@ -75,10 +75,14 @@ FirstMake Agent е **desktop приложение** за обработка на
 3. **Production Deployment** - Docker images, validation скриптове, env configuration
 4. **Code Quality** - Formatting, TypeScript upgrade, test fixes
 5. **Release v1.0.1** - Публикуван с full automation
-6. **Frontend Testing v1.0.2** - 109 comprehensive tests с 93.92% coverage! 🎯
+6. **Release v1.0.2** - Frontend Testing Enhancement 🎯
+   - 109 comprehensive tests (+40 from v1.0.1)
+   - 93.92% lines coverage, 79.76% branches
    - UploadPage: 92.85% coverage (+37.14%)
    - MatchPage: 88.70% coverage (+21.49%)
-   - Overall: 93.92% lines, 79.76% branches (exceeded all targets!)
+   - Raised CI thresholds to 85/75/80/85
+   - Test helpers and documentation
+   - Fixed Docker build issues
 
 ### High Priority (следващи стъпки)
 1. **UI Componentization**
