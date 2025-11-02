@@ -9,15 +9,12 @@ COPY FirstMake.sln ./
 COPY src/Api/Api.csproj ./src/Api/
 COPY src/AiGateway/AiGateway.csproj ./src/AiGateway/
 COPY src/Core.Engine/Core.Engine.csproj ./src/Core.Engine/
-COPY tests/Core.Engine.Tests/Core.Engine.Tests.csproj ./tests/Core.Engine.Tests/
-COPY tests/Performance/PerformanceBenchmark.csproj ./tests/Performance/
 
 # Restore dependencies
 RUN dotnet restore
 
 # Copy source code
 COPY src/ ./src/
-COPY tests/ ./tests/
 COPY Schemas/ ./Schemas/
 
 # Build and publish
