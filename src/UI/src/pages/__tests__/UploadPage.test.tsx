@@ -1,3 +1,16 @@
+/**
+ * UploadPage Component Tests
+ * 
+ * Tests the file upload functionality for KSS files, Ukazania files, 
+ * PriceBase files, and Template file. Validates:
+ * - UI rendering and file selection
+ * - Upload workflows (single/multi-file)
+ * - Progress indicators and success/error states
+ * - Navigation after successful upload
+ * 
+ * Coverage: 92.85% (37 tests)
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../../test/test-utils';
 import UploadPage from '../UploadPage';

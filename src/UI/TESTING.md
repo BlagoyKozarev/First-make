@@ -290,14 +290,62 @@ coverage: {
    - Include context: "when user clicks button", "after successful upload"
 
 4. **Clean Up After Tests**
-   - Clear sessionStorage in `afterEach()`
-   - Reset all mocks with `vi.clearAllMocks()`
+   - Use `cleanupTestEnvironment()` helper from `test/helpers.ts`
+   - Clears all mocks and sessionStorage automatically
+   - Call in `beforeEach()` hook
 
-5. **Test Edge Cases**
+5. **Use Test Helpers**
+   - Import from `../../test/helpers.ts` for common patterns
+   - `setupProjectSession()` - Set up project context
+   - `confirmDialog()` - Handle confirmation dialogs
+   - `TEST_PROJECT_ID` - Use consistent test data
+
+6. **Test Edge Cases**
    - Empty states
    - Error states
    - Loading states
    - Validation failures
+
+## Test Helpers
+
+The project provides reusable test utilities in `src/test/helpers.ts`:
+
+### `TEST_PROJECT_ID`
+```typescript
+import { TEST_PROJECT_ID } from '../../test/helpers';
+
+// Use instead of hardcoded 'test-project-123'
+sessionStorage.setItem('currentProjectId', TEST_PROJECT_ID);
+```
+
+### `setupProjectSession(projectId?)`
+```typescript
+import { setupProjectSession } from '../../test/helpers';
+
+beforeEach(() => {
+  setupProjectSession(); // Uses TEST_PROJECT_ID by default
+});
+```
+
+### `cleanupTestEnvironment()`
+```typescript
+import { cleanupTestEnvironment } from '../../test/helpers';
+
+beforeEach(() => {
+  cleanupTestEnvironment(); // Clears mocks and sessionStorage
+});
+```
+
+### `confirmDialog(buttonText?)`
+```typescript
+import { confirmDialog } from '../../test/helpers';
+
+// Wait for and confirm dialog
+await confirmDialog(); // Uses default /да, замени/i
+await confirmDialog(/yes, delete/i); // Custom button text
+```
+
+See [src/test/README.md](src/test/README.md) for complete helper documentation.
 
 ## CI Integration
 

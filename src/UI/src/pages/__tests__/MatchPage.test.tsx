@@ -1,3 +1,16 @@
+/**
+ * MatchPage Component Tests
+ * 
+ * Tests the matching workflow and manual override functionality. Validates:
+ * - Auto-trigger matching on mount
+ * - Display of unmatched candidates with search/filter
+ * - Candidate expansion (show top 5 suggestions)
+ * - Manual override with confirmation dialog
+ * - Navigation and button states
+ * 
+ * Coverage: 88.70% (23 tests)
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../../test/test-utils';
 import MatchPage from '../MatchPage';

@@ -1,3 +1,16 @@
+/**
+ * IterationPage Component Tests
+ * 
+ * Tests the optimization/iteration workflow. Validates:
+ * - Auto-trigger optimization on mount
+ * - Display of optimization results (stages, costs, selected positions)
+ * - Re-run optimization functionality
+ * - Navigation controls
+ * - Error handling and loading states
+ * 
+ * Coverage: 89.18% (9 tests)
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '../../test/test-utils';
 import IterationPage from '../IterationPage';

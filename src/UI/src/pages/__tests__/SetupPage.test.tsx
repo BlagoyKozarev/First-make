@@ -1,3 +1,16 @@
+/**
+ * SetupPage Component Tests
+ * 
+ * Tests the project creation workflow. Validates:
+ * - Form rendering with all required fields
+ * - Form validation (required fields, date format)
+ * - Project creation API integration
+ * - Success/error handling
+ * - Navigation after project creation
+ * 
+ * Coverage: 100% (7 tests)
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../../test/test-utils';
 import SetupPage from '../SetupPage';

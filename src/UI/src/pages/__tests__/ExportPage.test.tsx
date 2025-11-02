@@ -1,3 +1,16 @@
+/**
+ * ExportPage Component Tests
+ * 
+ * Tests the export/download workflow. Validates:
+ * - Results summary display (costs, selected positions, items)
+ * - Export to Excel functionality
+ * - ZIP file download handling
+ * - Export options (BOQ, iteration results, price details)
+ * - Error handling and loading states
+ * 
+ * Coverage: 95.55% (9 tests)
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import ExportPage from '../ExportPage';

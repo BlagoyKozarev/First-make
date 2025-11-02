@@ -1,3 +1,19 @@
+/**
+ * API Module Tests
+ * 
+ * Tests all API utility functions with proper axios mocking. Validates:
+ * - Project operations (create, get, delete)
+ * - File uploads (KSS, Ukazania, PriceBase, Template)
+ * - Matching workflow (trigger, get candidates, override)
+ * - Optimization workflow (run, get results)
+ * - Export operations (results, preview files)
+ * - Error handling and response parsing
+ * 
+ * Coverage: 100% (14 tests)
+ * 
+ * Note: Uses vi.hoisted() pattern to ensure mocks are defined before module imports.
+ */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Use vi.hoisted to ensure mocks are initialized before imports

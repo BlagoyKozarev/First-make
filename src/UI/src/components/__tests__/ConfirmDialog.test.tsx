@@ -1,3 +1,16 @@
+/**
+ * ConfirmDialog Component Tests
+ * 
+ * Tests the reusable confirmation dialog component. Validates:
+ * - Render states (open/closed)
+ * - Button interactions (confirm/cancel)
+ * - Custom text props (title, message, buttons)
+ * - Callback execution
+ * - Keyboard accessibility
+ * 
+ * Coverage: 100% (10 tests)
+ */
+
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '../../test/test-utils';
 import ConfirmDialog from '../ConfirmDialog';
