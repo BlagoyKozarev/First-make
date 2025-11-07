@@ -1,6 +1,7 @@
 using Core.Engine.Models;
 using Google.OrTools.LinearSolver;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Engine.Services;
 
@@ -11,10 +12,21 @@ namespace Core.Engine.Services;
 /// </summary>
 public class MultiFileOptimizer
 {
+    private readonly ILogger<MultiFileOptimizer>? _logger;
+
+    public MultiFileOptimizer(ILogger<MultiFileOptimizer>? logger = null)
+    {
+        _logger = logger;
+    }
+
     /// <summary>
     /// Optimize with unified coefficients across multiple BOQ files
     /// </summary>
-    public IterationResult OptimizeMultiFile(ProjectSession session, UnifiedMatchResult matchResult, int iterationNumber)
+    public IterationResult OptimizeMultiFile(
+        ProjectSession session, 
+        UnifiedMatchResult matchResult, 
+        int iterationNumber,
+        IterationResult? previousIteration = null)
     {
         if (session.Forecasts == null)
         {
@@ -38,8 +50,67 @@ public class MultiFileOptimizer
         var dPlusVars = new Dictionary<string, Variable>();
         var dMinusVars = new Dictionary<string, Variable>();
 
-        const double minCoeff = 0.4;
-        const double maxCoeff = 2.0;
+        // Adaptive parameters based on iteration number and previous results
+        // Core insight: Lambda controls the trade-off between:
+        //   - Low lambda → maximize budget usage (lower gap) but may distort coefficients
+        //   - High lambda → keep coefficients near 1.0 but may leave budget unused (higher gap)
+        // Strategy:
+        //   - Iteration 1: Start conservative (lambda=500) to find feasible baseline
+        //   - Iteration 2+: Aggressively reduce lambda to push gap down
+        //   - Then gradually increase if gap gets too low or unstable
+        
+        double minCoeff, maxCoeff, lambda;
+        double previousGapPercent = 0;
+        
+        if (previousIteration != null && previousIteration.OverallForecast > 0)
+        {
+            previousGapPercent = (double)(previousIteration.OverallGap / previousIteration.OverallForecast * 100);
+        }
+        
+        // Iteration-specific strategy
+        if (iterationNumber == 1)
+        {
+            // First iteration: Wide range, moderate lambda
+            minCoeff = 0.70;
+            maxCoeff = 1.30;
+            lambda = 500.0;
+            _logger?.LogInformation("Iteration 1: Initial optimization");
+        }
+        else if (iterationNumber == 2)
+        {
+            // Second iteration: Narrower range, very low lambda to push gap down
+            minCoeff = 0.75;
+            maxCoeff = 1.25;
+            lambda = 100.0; // Very low lambda - prioritize gap reduction
+            _logger?.LogInformation("Iteration 2: Aggressive gap reduction (previous gap: {Gap:F2}%)", previousGapPercent);
+        }
+        else if (previousGapPercent < 0.5)
+        {
+            // Gap very small - might be too aggressive, stabilize
+            minCoeff = 0.80;
+            maxCoeff = 1.20;
+            lambda = 400.0;
+            _logger?.LogInformation("Previous gap {Gap:F2}% excellent - stabilizing", previousGapPercent);
+        }
+        else if (previousGapPercent < 1.0)
+        {
+            // Gap good - continue fine tuning with tighter range
+            minCoeff = 0.80;
+            maxCoeff = 1.20;
+            lambda = 150.0;
+            _logger?.LogInformation("Previous gap {Gap:F2}% good - fine tuning", previousGapPercent);
+        }
+        else
+        {
+            // Gap still too high - keep pushing with medium range
+            minCoeff = 0.75;
+            maxCoeff = 1.25;
+            lambda = 80.0; // Very aggressive lambda
+            _logger?.LogInformation("Previous gap {Gap:F2}% high - pushing harder", previousGapPercent);
+        }
+        
+        _logger?.LogInformation("Iteration {Iter}: Coeff range [{Min:F2}, {Max:F2}], Lambda = {Lambda:F0}",
+            iterationNumber, minCoeff, maxCoeff, lambda);
 
         foreach (var key in uniquePairs)
         {
@@ -99,8 +170,6 @@ public class MultiFileOptimizer
         var objective = solver.Objective();
         objective.SetMaximization();
 
-        const double lambda = 1000.0; // Penalty weight for deviating from coefficient = 1.0
-
         // Total value term
         foreach (var itemMatch in matchResult.ItemMatches.Values)
         {
@@ -115,7 +184,7 @@ public class MultiFileOptimizer
             objective.SetCoefficient(coeffVars[key], valueCoeff);
         }
 
-        // L1 penalty term
+        // L1 penalty term - keeps coefficients close to 1.0
         foreach (var key in coeffVars.Keys)
         {
             objective.SetCoefficient(dPlusVars[key], -lambda);
@@ -125,6 +194,9 @@ public class MultiFileOptimizer
         // Solve
         var status = solver.Solve();
         sw.Stop();
+
+        _logger?.LogInformation("Solver finished: Status = {Status}, Time = {Time}ms, Objective = {Obj:F2}",
+            status, sw.ElapsedMilliseconds, status == Solver.ResultStatus.OPTIMAL ? solver.Objective().Value() : 0);
 
         if (status != Solver.ResultStatus.OPTIMAL && status != Solver.ResultStatus.FEASIBLE)
         {
@@ -216,6 +288,11 @@ public class MultiFileOptimizer
         // Overall totals
         var overallProposed = boqResults.Values.Sum(b => b.TotalProposed);
         var overallForecast = session.Forecasts?.TotalForecast ?? 0;
+        var overallGap = overallForecast - overallProposed;
+        var gapPercentage = overallForecast > 0 ? (double)overallGap / (double)overallForecast * 100.0 : 0;
+
+        _logger?.LogInformation("Results: Forecast = {Forecast:F2}, Proposed = {Proposed:F2}, Gap = {Gap:F2} ({GapPct:F2}%)",
+            overallForecast, overallProposed, overallGap, gapPercentage);
 
         return new IterationResult
         {

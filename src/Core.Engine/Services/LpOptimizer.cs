@@ -56,6 +56,7 @@ public class LpOptimizer
         // Per-stage budget constraints: Σ(qty * basePrice * c) ≤ forecast
         foreach (var stage in request.Stages)
         {
+            // Constraint: proposed ≤ forecast (don't exceed budget)
             var stageConstraint = solver.MakeConstraint(double.NegativeInfinity, (double)stage.Forecast, $"budget_{stage.Code}");
 
             var stageItems = request.MatchedItems.Where(m => m.Item.Stage == stage.Code);
@@ -68,9 +69,10 @@ public class LpOptimizer
         }
 
         // Objective: maximize total value - λ * Σ(d⁺ + d⁻)
+        // This encourages using max budget while keeping coefficients close to 1.0
         var objective = solver.Objective();
 
-        // Total value term: Σ(qty * basePrice * c)
+        // Total value term: Σ(qty * basePrice * c) - maximize to use budget
         foreach (var item in request.MatchedItems)
         {
             var pair = (item.PriceEntry.Name, item.PriceEntry.Unit);
@@ -78,7 +80,7 @@ public class LpOptimizer
             objective.SetCoefficient(coeffVars[pair], valueCoeff);
         }
 
-        // L1 penalty term: -λ * Σ(d⁺ + d⁻)
+        // L1 penalty term: -λ * Σ(d⁺ + d⁻) - keeps coefficients close to 1.0
         foreach (var pair in uniquePairs)
         {
             objective.SetCoefficient(dPlusVars[pair], -request.Lambda);

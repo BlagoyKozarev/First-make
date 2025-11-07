@@ -10,6 +10,7 @@ public class UnifiedMatcher
 {
     private readonly FuzzyMatcher _fuzzyMatcher;
     private readonly Dictionary<string, MatchResult> _unifiedMatches;
+    private readonly object _lock = new object();
 
     public UnifiedMatcher(FuzzyMatcher fuzzyMatcher)
     {
@@ -23,108 +24,114 @@ public class UnifiedMatcher
     /// </summary>
     public UnifiedMatchResult MatchAll(List<BoqDocument> boqDocuments, List<PriceEntry> priceBase)
     {
-        var itemMatches = new Dictionary<string, ItemMatch>();
-        var unmatchedItems = new List<BoqItemDto>();
-
-        // Process all items from all documents
-        foreach (var doc in boqDocuments)
+        lock (_lock)
         {
-            foreach (var item in doc.Items)
+            // Clear previous matches to allow re-matching
+            _unifiedMatches.Clear();
+            
+            var itemMatches = new Dictionary<string, ItemMatch>();
+            var unmatchedItems = new List<BoqItemDto>();
+
+            // Process all items from all documents
+            foreach (var doc in boqDocuments)
             {
-                var key = GetUnifiedKey(item.Name, item.Unit);
-
-                // Check if we already matched this (Name, Unit) combination
-                if (_unifiedMatches.TryGetValue(key, out var existingMatch))
+                foreach (var item in doc.Items)
                 {
-                    // Reuse existing match
-                    itemMatches[item.Id] = new ItemMatch
+                    var key = GetUnifiedKey(item.Name, item.Unit);
+
+                    // Check if we already matched this (Name, Unit) combination
+                    if (_unifiedMatches.TryGetValue(key, out var existingMatch))
                     {
-                        ItemId = item.Id,
-                        Item = item,
-                        PriceEntry = existingMatch.PriceEntry,
-                        Score = existingMatch.Score,
-                        IsManual = false,
-                        UnifiedKey = key
-                    };
-                }
-                else
-                {
-                    // Find new match
-                    var candidates = _fuzzyMatcher.FindCandidates(
-                        new ItemDto
-                        {
-                            Stage = item.StageCode,
-                            Name = item.Name,
-                            Unit = item.Unit,
-                            Qty = item.Quantity
-                        },
-                        priceBase.Select(p => new PriceBaseEntry
-                        {
-                            Name = p.Name,
-                            Unit = p.Unit,
-                            BasePrice = p.BasePrice
-                        }).ToList(),
-                        topN: 5
-                    );
-
-                    if (candidates.Any() && candidates.First().Score >= 0.6)
-                    {
-                        var best = candidates.First();
-                        var priceEntry = priceBase.First(p =>
-                            p.Name == best.Entry.Name && p.Unit == best.Entry.Unit);
-
-                        var matchResult = new MatchResult
-                        {
-                            PriceEntry = priceEntry,
-                            Score = (decimal)best.Score
-                        };
-
-                        // Store unified match
-                        _unifiedMatches[key] = matchResult;
-
+                        // Reuse existing match
                         itemMatches[item.Id] = new ItemMatch
                         {
                             ItemId = item.Id,
                             Item = item,
-                            PriceEntry = priceEntry,
-                            Score = (decimal)best.Score,
+                            PriceEntry = existingMatch.PriceEntry,
+                            Score = existingMatch.Score,
                             IsManual = false,
                             UnifiedKey = key
                         };
                     }
                     else
                     {
-                        // No good match found
-                        unmatchedItems.Add(item);
+                        // Find new match
+                        var candidates = _fuzzyMatcher.FindCandidates(
+                            new ItemDto
+                            {
+                                Stage = item.StageCode,
+                                Name = item.Name,
+                                Unit = item.Unit,
+                                Qty = item.Quantity
+                            },
+                            priceBase.Select(p => new PriceBaseEntry
+                            {
+                                Name = p.Name,
+                                Unit = p.Unit,
+                                BasePrice = p.BasePrice
+                            }).ToList(),
+                            topN: 5
+                        );
 
-                        itemMatches[item.Id] = new ItemMatch
+                        if (candidates.Any() && candidates.First().Score >= 0.6)
                         {
-                            ItemId = item.Id,
-                            Item = item,
-                            PriceEntry = null,
-                            Score = 0,
-                            IsManual = false,
-                            UnifiedKey = key
-                        };
+                            var best = candidates.First();
+                            var priceEntry = priceBase.First(p =>
+                                p.Name == best.Entry.Name && p.Unit == best.Entry.Unit);
+
+                            var matchResult = new MatchResult
+                            {
+                                PriceEntry = priceEntry,
+                                Score = (decimal)best.Score
+                            };
+
+                            // Store unified match
+                            _unifiedMatches[key] = matchResult;
+
+                            itemMatches[item.Id] = new ItemMatch
+                            {
+                                ItemId = item.Id,
+                                Item = item,
+                                PriceEntry = priceEntry,
+                                Score = (decimal)best.Score,
+                                IsManual = false,
+                                UnifiedKey = key
+                            };
+                        }
+                        else
+                        {
+                            // No good match found
+                            unmatchedItems.Add(item);
+
+                            itemMatches[item.Id] = new ItemMatch
+                            {
+                                ItemId = item.Id,
+                                Item = item,
+                                PriceEntry = null,
+                                Score = 0,
+                                IsManual = false,
+                                UnifiedKey = key
+                            };
+                        }
                     }
                 }
             }
-        }
 
-        return new UnifiedMatchResult
-        {
-            ItemMatches = itemMatches,
-            UnifiedMatches = _unifiedMatches.ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
-            UnmatchedItems = unmatchedItems,
-            Statistics = new MatchStatistics
+            return new UnifiedMatchResult
             {
-                TotalItems = itemMatches.Count,
-                MatchedItems = itemMatches.Count(m => m.Value.PriceEntry != null),
-                UnmatchedItems = unmatchedItems.Count,
-                UniquePositions = _unifiedMatches.Count,
-                AverageScore = itemMatches.Where(m => m.Value.Score > 0).Average(m => (double?)m.Value.Score) ?? 0
-            }
-        };
+                ItemMatches = itemMatches,
+                UnifiedMatches = new Dictionary<string, MatchResult>(_unifiedMatches, StringComparer.OrdinalIgnoreCase),
+                UnmatchedItems = unmatchedItems,
+                Statistics = new MatchStatistics
+                {
+                    TotalItems = itemMatches.Count,
+                    MatchedItems = itemMatches.Count(m => m.Value.PriceEntry != null),
+                    UnmatchedItems = unmatchedItems.Count,
+                    UniquePositions = _unifiedMatches.Count,
+                    AverageScore = itemMatches.Where(m => m.Value.Score > 0).Average(m => (double?)m.Value.Score) ?? 0
+                }
+            };
+        }
     }
 
     /// <summary>
@@ -133,26 +140,29 @@ public class UnifiedMatcher
     /// </summary>
     public void OverrideMatch(string itemId, PriceEntry priceEntry, UnifiedMatchResult currentResult)
     {
-        if (!currentResult.ItemMatches.TryGetValue(itemId, out var itemMatch))
+        lock (_lock)
         {
-            throw new KeyNotFoundException($"Item {itemId} not found in match results");
-        }
+            if (!currentResult.ItemMatches.TryGetValue(itemId, out var itemMatch))
+            {
+                throw new KeyNotFoundException($"Item {itemId} not found in match results");
+            }
 
-        var key = itemMatch.UnifiedKey;
+            var key = itemMatch.UnifiedKey;
 
-        // Update unified match
-        _unifiedMatches[key] = new MatchResult
-        {
-            PriceEntry = priceEntry,
-            Score = 1.0m // Manual match = perfect score
-        };
+            // Update unified match
+            _unifiedMatches[key] = new MatchResult
+            {
+                PriceEntry = priceEntry,
+                Score = 1.0m // Manual match = perfect score
+            };
 
-        // Update all items with same key
-        foreach (var match in currentResult.ItemMatches.Values.Where(m => m.UnifiedKey == key))
-        {
-            match.PriceEntry = priceEntry;
-            match.Score = 1.0m;
-            match.IsManual = true;
+            // Update all items with same key
+            foreach (var match in currentResult.ItemMatches.Values.Where(m => m.UnifiedKey == key))
+            {
+                match.PriceEntry = priceEntry;
+                match.Score = 1.0m;
+                match.IsManual = true;
+            }
         }
     }
 
@@ -162,53 +172,56 @@ public class UnifiedMatcher
     /// </summary>
     public List<UnifiedCandidate> GetUnmatchedCandidates(UnifiedMatchResult result, List<PriceEntry> priceBase)
     {
-        var unmatchedKeys = result.UnmatchedItems
-            .Select(item => GetUnifiedKey(item.Name, item.Unit))
-            .Distinct()
-            .ToList();
-
-        var candidates = new List<UnifiedCandidate>();
-
-        foreach (var key in unmatchedKeys)
+        lock (_lock)
         {
-            var sampleItem = result.UnmatchedItems.First(i => GetUnifiedKey(i.Name, i.Unit) == key);
+            var unmatchedKeys = result.UnmatchedItems
+                .Select(item => GetUnifiedKey(item.Name, item.Unit))
+                .Distinct()
+                .ToList();
 
-            var topCandidates = _fuzzyMatcher.FindCandidates(
-                new ItemDto
+            var candidates = new List<UnifiedCandidate>();
+
+            foreach (var key in unmatchedKeys)
+            {
+                var sampleItem = result.UnmatchedItems.First(i => GetUnifiedKey(i.Name, i.Unit) == key);
+
+                var topCandidates = _fuzzyMatcher.FindCandidates(
+                    new ItemDto
+                    {
+                        Stage = sampleItem.StageCode,
+                        Name = sampleItem.Name,
+                        Unit = sampleItem.Unit,
+                        Qty = sampleItem.Quantity
+                    },
+                    priceBase.Select(p => new PriceBaseEntry
+                    {
+                        Name = p.Name,
+                        Unit = p.Unit,
+                        BasePrice = p.BasePrice
+                    }).ToList(),
+                    topN: 5
+                );
+
+                candidates.Add(new UnifiedCandidate
                 {
-                    Stage = sampleItem.StageCode,
+                    UnifiedKey = key,
                     Name = sampleItem.Name,
                     Unit = sampleItem.Unit,
-                    Qty = sampleItem.Quantity
-                },
-                priceBase.Select(p => new PriceBaseEntry
-                {
-                    Name = p.Name,
-                    Unit = p.Unit,
-                    BasePrice = p.BasePrice
-                }).ToList(),
-                topN: 5
-            );
-
-            candidates.Add(new UnifiedCandidate
-            {
-                UnifiedKey = key,
-                Name = sampleItem.Name,
-                Unit = sampleItem.Unit,
-                OccurrenceCount = result.ItemMatches.Values.Count(m => m.UnifiedKey == key),
-                TopMatches = topCandidates.Select(c =>
-                {
-                    var priceEntry = priceBase.First(p => p.Name == c.Entry.Name && p.Unit == c.Entry.Unit);
-                    return new PriceCandidateMatch
+                    OccurrenceCount = result.ItemMatches.Values.Count(m => m.UnifiedKey == key),
+                    TopMatches = topCandidates.Select(c =>
                     {
-                        PriceEntry = priceEntry,
-                        Score = (decimal)c.Score
-                    };
-                }).ToList()
-            });
-        }
+                        var priceEntry = priceBase.First(p => p.Name == c.Entry.Name && p.Unit == c.Entry.Unit);
+                        return new PriceCandidateMatch
+                        {
+                            PriceEntry = priceEntry,
+                            Score = (decimal)c.Score
+                        };
+                    }).ToList()
+                });
+            }
 
-        return candidates.OrderByDescending(c => c.OccurrenceCount).ToList();
+            return candidates.OrderByDescending(c => c.OccurrenceCount).ToList();
+        }
     }
 
     private string GetUnifiedKey(string name, string unit)

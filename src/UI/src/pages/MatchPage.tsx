@@ -37,23 +37,35 @@ export default function MatchPage() {
   }, [navigate]);
 
   const handleTriggerMatching = async (id: string) => {
+    console.log('[MatchPage] Starting matching for project:', id);
     setIsMatching(true);
     setError(null);
 
     try {
+      console.log('[MatchPage] Calling triggerMatching API...');
       const stats = await triggerMatching(id);
+      console.log('[MatchPage] Matching complete. Stats:', stats);
       setStatistics(stats);
 
       // Fetch unmatched candidates if any
       if (stats.unmatchedItems > 0) {
+        console.log('[MatchPage] Fetching', stats.unmatchedItems, 'unmatched candidates...');
         const unmatchedCandidates = await getUnmatchedCandidates(id);
+        console.log('[MatchPage] Found', unmatchedCandidates.length, 'candidates');
         setCandidates(unmatchedCandidates);
+      } else {
+        console.log('[MatchPage] All items matched!');
+        setCandidates([]);
       }
     } catch (err) {
-      console.error('Matching failed:', err);
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Грешка при съпоставяне');
+      console.error('[MatchPage] Matching failed:', err);
+      const error = err as { response?: { data?: { error?: string; message?: string } } };
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          'Грешка при съпоставяне';
+      setError(errorMessage);
     } finally {
+      console.log('[MatchPage] Matching process finished');
       setIsMatching(false);
     }
   };
@@ -144,7 +156,9 @@ export default function MatchPage() {
             </div>
             <div className="bg-card border rounded-lg p-4">
               <p className="text-sm text-muted-foreground">СреденScore</p>
-              <p className="text-2xl font-bold mt-1">{statistics.averageScore.toFixed(2)}</p>
+              <p className="text-2xl font-bold mt-1">
+                {statistics.averageScore ? statistics.averageScore.toFixed(2) : '0.00'}
+              </p>
             </div>
           </div>
 

@@ -4,6 +4,8 @@ import { Play, CheckCircle, AlertTriangle, TrendingUp } from 'lucide-react';
 import {
   runOptimization,
   getLatestIteration,
+  getAllIterations,
+  selectIteration,
   type IterationResult,
 } from '../lib/api';
 
@@ -12,6 +14,8 @@ export default function IterationPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [iteration, setIteration] = useState<IterationResult | null>(null);
+  const [allIterations, setAllIterations] = useState<IterationResult[]>([]);
+  const [selectedIterationNumber, setSelectedIterationNumber] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
@@ -30,6 +34,11 @@ export default function IterationPage() {
     try {
       const latest = await getLatestIteration(id);
       setIteration(latest);
+      setSelectedIterationNumber(latest.iterationId ? parseInt(latest.iterationId.split('_')[1]) : 0);
+      
+      // Load all iterations
+      const all = await getAllIterations(id);
+      setAllIterations(all);
     } catch (err) {
       // No iteration yet, that's OK
       console.log('No iteration found yet');
@@ -39,12 +48,47 @@ export default function IterationPage() {
   const handleOptimize = async () => {
     if (!projectId) return;
 
+    // Check if current gap is already optimal (<=1%)
+    if (iteration) {
+      const currentGapPercentage = iteration.totalForecast > 0 
+        ? Math.abs(iteration.overallGap / iteration.totalForecast * 100)
+        : 0;
+      
+      if (currentGapPercentage <= 1.0) {
+        const confirmReoptimize = window.confirm(
+          `Текущият gap е ${currentGapPercentage.toFixed(2)}%, което е отличен резултат (≤1%).\n\n` +
+          'Наистина ли искате да изпълните повторна оптимизация?\n\n' +
+          'Забележка: Повторната оптимизация може да не подобри значително резултата.'
+        );
+        
+        if (!confirmReoptimize) {
+          return;
+        }
+      }
+    }
+
     setIsOptimizing(true);
     setError(null);
 
     try {
       const result = await runOptimization(projectId);
       setIteration(result);
+      setSelectedIterationNumber(result.iterationId ? parseInt(result.iterationId.split('_')[1]) : 0);
+      
+      // Reload all iterations
+      const all = await getAllIterations(projectId);
+      setAllIterations(all);
+      
+      // Check gap percentage
+      const gapPercentage = result.totalForecast > 0 
+        ? Math.abs(result.overallGap / result.totalForecast * 100)
+        : 0;
+      
+      if (gapPercentage <= 1.0) {
+        setError(null);
+      } else if (gapPercentage > 5.0) {
+        setError(`Gap е ${gapPercentage.toFixed(2)}%, което е над препоръчителното (≤1%). Опитайте повторна оптимизация.`);
+      }
     } catch (err) {
       console.error('Optimization failed:', err);
       const error = err as { response?: { data?: { message?: string } } };
@@ -54,14 +98,39 @@ export default function IterationPage() {
     }
   };
 
+  const handleSelectIteration = async (iterNum: number) => {
+    if (!projectId) return;
+    
+    try {
+      const selected = await selectIteration(projectId, iterNum);
+      setIteration(selected);
+      setSelectedIterationNumber(iterNum);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to select iteration:', err);
+      setError('Грешка при избор на итерация');
+    }
+  };
+
   const allStagesValid = iteration
     ? iteration.stageBreakdown.every((stage) => stage.gap >= 0)
     : false;
 
+  const currentGapPercentage = iteration && iteration.totalForecast > 0
+    ? Math.abs(iteration.overallGap / iteration.totalForecast * 100)
+    : 0;
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Оптимизация</h1>
+        <h1 className="text-3xl font-bold mb-2">
+          Оптимизация
+          {iteration && selectedIterationNumber > 0 && (
+            <span className="ml-3 text-2xl text-muted-foreground">
+              (Итерация #{selectedIterationNumber})
+            </span>
+          )}
+        </h1>
         <p className="text-muted-foreground">
           Изпълнете линейна оптимизация за изравняване на бюджета по етапи
         </p>
@@ -118,50 +187,86 @@ export default function IterationPage() {
       {iteration && (
         <>
           {/* Success/Warning Message */}
-          {allStagesValid ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-              <div className="flex items-start gap-4">
+          <div className={`border rounded-lg p-6 mb-6 ${
+            currentGapPercentage <= 1.0 
+              ? 'bg-green-50 border-green-200'
+              : currentGapPercentage <= 3.0
+              ? 'bg-blue-50 border-blue-200'
+              : currentGapPercentage <= 5.0
+              ? 'bg-orange-50 border-orange-200'
+              : 'bg-red-50 border-red-200'
+          }`}>
+            <div className="flex items-start gap-4">
+              {currentGapPercentage <= 1.0 ? (
                 <CheckCircle className="w-8 h-8 text-green-600 flex-shrink-0" />
-                <div>
-                  <h3 className="text-lg font-semibold text-green-900">Оптимизацията завърши успешно!</h3>
-                  <p className="text-sm text-green-700 mt-1">
-                    Всички етапи са в рамките на бюджета. Overall Gap: {iteration.overallGap.toFixed(2)} лв
-                  </p>
-                </div>
+              ) : (
+                <AlertTriangle className={`w-8 h-8 flex-shrink-0 ${
+                  currentGapPercentage <= 3.0 ? 'text-blue-600' : currentGapPercentage <= 5.0 ? 'text-orange-600' : 'text-red-600'
+                }`} />
+              )}
+              <div className="flex-1">
+                {currentGapPercentage <= 1.0 ? (
+                  <>
+                    <h3 className="text-lg font-semibold text-green-900">🎉 Отлична оптимизация!</h3>
+                    <p className="text-sm text-green-700 mt-1">
+                      Gap: {currentGapPercentage.toFixed(2)}% (≤1%) - Резултатът е в целевия диапазон.
+                      {allStagesValid && ' Всички етапи са в рамките на бюджета.'}
+                    </p>
+                  </>
+                ) : currentGapPercentage <= 3.0 ? (
+                  <>
+                    <h3 className="text-lg font-semibold text-blue-900">Добра оптимизация</h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Gap: {currentGapPercentage.toFixed(2)}% - Резултатът е приемлив. Може да опитате повторна оптимизация за по-добър резултат.
+                    </p>
+                  </>
+                ) : currentGapPercentage <= 5.0 ? (
+                  <>
+                    <h3 className="text-lg font-semibold text-orange-900">Приемлива оптимизация</h3>
+                    <p className="text-sm text-orange-700 mt-1">
+                      Gap: {currentGapPercentage.toFixed(2)}% - Препоръчва се повторна оптимизация за по-добър резултат (цел: ≤1%).
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-semibold text-red-900">Gap е твърде висок</h3>
+                    <p className="text-sm text-red-700 mt-1">
+                      Gap: {currentGapPercentage.toFixed(2)}% - Силно се препоръчва повторна оптимизация (цел: ≤1%).
+                    </p>
+                  </>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 mb-6">
-              <div className="flex items-start gap-4">
-                <AlertTriangle className="w-8 h-8 text-orange-600 flex-shrink-0" />
-                <div>
-                  <h3 className="text-lg font-semibold text-orange-900">Има етапи с отрицателен Gap</h3>
-                  <p className="text-sm text-orange-700 mt-1">
-                    Някои етапи надвишават прогнозата. Разгледайте детайлите по-долу.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-card border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Overall Gap</p>
+              <p className="text-sm text-muted-foreground">Gap %</p>
+              <p className={`text-2xl font-bold mt-1 ${
+                currentGapPercentage <= 1.0 ? 'text-green-600' : 
+                currentGapPercentage <= 3.0 ? 'text-blue-600' : 
+                currentGapPercentage <= 5.0 ? 'text-orange-600' : 'text-red-600'
+              }`}>
+                {currentGapPercentage.toFixed(2)}%
+              </p>
+            </div>
+            <div className="bg-card border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Gap (лв)</p>
               <p className={`text-2xl font-bold mt-1 ${iteration.overallGap >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {iteration.overallGap >= 0 ? '+' : ''}{iteration.overallGap.toFixed(2)} лв
+                {iteration.overallGap >= 0 ? '+' : ''}{iteration.overallGap.toFixed(2)}
               </p>
             </div>
             <div className="bg-card border rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Предложена</p>
-              <p className="text-2xl font-bold mt-1">{iteration.totalProposed.toFixed(2)} лв</p>
+              <p className="text-2xl font-bold mt-1">{iteration.totalProposed.toFixed(2)}</p>
             </div>
             <div className="bg-card border rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Прогноза</p>
-              <p className="text-2xl font-bold mt-1">{iteration.totalForecast.toFixed(2)} лв</p>
+              <p className="text-2xl font-bold mt-1">{iteration.totalForecast.toFixed(2)}</p>
             </div>
             <div className="bg-card border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Време на solver</p>
+              <p className="text-sm text-muted-foreground">Време</p>
               <p className="text-2xl font-bold mt-1">{iteration.solverTimeMs} ms</p>
             </div>
           </div>
@@ -245,16 +350,84 @@ export default function IterationPage() {
           </div>
 
           {/* Re-optimize Button */}
-          <div className="flex items-center justify-center mb-6">
+          <div className="flex items-center justify-center gap-4 mb-6">
             <button
               onClick={handleOptimize}
               disabled={isOptimizing}
-              className="px-6 py-2 border rounded-md hover:bg-muted transition-colors flex items-center gap-2"
+              className="px-6 py-2 border rounded-md hover:bg-muted transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Play className="w-4 h-4" />
               Изпълни отново
             </button>
           </div>
+
+          {/* Iteration Selection */}
+          {allIterations.length > 1 && (
+            <div className="bg-card border rounded-lg p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">Избор на итерация за експорт</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Изберете коя итерация желаете да експортирате. Текущо избрана: <span className="font-bold">Итерация {selectedIterationNumber}</span>
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {allIterations.map((iter) => {
+                  const iterNum = iter.iterationNumber;
+                  const isSelected = iterNum === selectedIterationNumber;
+                  const gapPercentage = iter.totalForecast > 0 
+                    ? (iter.overallGap / iter.totalForecast * 100)
+                    : 0;
+                  
+                  return (
+                    <button
+                      key={iter.iterationId}
+                      onClick={() => handleSelectIteration(iterNum)}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        isSelected 
+                          ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold">Итерация {iterNum}</span>
+                        {isSelected && (
+                          <CheckCircle className="w-5 h-5 text-primary" />
+                        )}
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Gap:</span>
+                          <span className={`font-semibold ${iter.overallGap >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {iter.overallGap.toFixed(2)} лв
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Gap %:</span>
+                          <span className={`font-semibold ${gapPercentage <= 1.0 ? 'text-green-600' : gapPercentage <= 5.0 ? 'text-orange-600' : 'text-red-600'}`}>
+                            {gapPercentage.toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Предложена:</span>
+                          <span className="text-foreground">{iter.totalProposed.toFixed(0)} лв</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Време:</span>
+                          <span className="text-foreground">{iter.solverTimeMs} ms</span>
+                        </div>
+                      </div>
+                      {gapPercentage <= 1.0 && (
+                        <div className="mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded text-center font-medium">
+                          ✓ Отличен резултат (≤1%)
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-4 italic">
+                * Избраната итерация ще бъде използвана при експортиране на файловете
+              </p>
+            </div>
+          )}
         </>
       )}
 
@@ -269,7 +442,7 @@ export default function IterationPage() {
 
         <button
           onClick={() => navigate('/export')}
-          disabled={!iteration || !allStagesValid}
+          disabled={!iteration}
           className="px-6 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Към Експорт

@@ -61,6 +61,7 @@ export interface MatchStatistics {
 
 export interface IterationResult {
   iterationId: string;
+  iterationNumber: number;
   timestamp: string;
   overallGap: number;
   totalProposed: number;
@@ -103,12 +104,17 @@ export const uploadKssFiles = async (projectId: string, files: File[]): Promise<
   });
 };
 
-export const uploadUkazaniaFiles = async (projectId: string, files: File[]): Promise<void> => {
+export const uploadForecastFiles = async (projectId: string, files: File[]): Promise<void> => {
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file));
-  await api.post(`/projects/${projectId}/files/ukazania`, formData, {
+  await api.post(`/projects/${projectId}/files/forecasts`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+};
+
+// DEPRECATED: kept for backward compatibility
+export const uploadUkazaniaFiles = async (projectId: string, files: File[]): Promise<void> => {
+  return uploadForecastFiles(projectId, files);
 };
 
 export const uploadPriceBaseFiles = async (projectId: string, files: File[]): Promise<void> => {
@@ -134,8 +140,8 @@ export const triggerMatching = async (projectId: string): Promise<MatchStatistic
 };
 
 export const getUnmatchedCandidates = async (projectId: string): Promise<UnifiedCandidate[]> => {
-  const response = await api.get<UnifiedCandidate[]>(`/projects/${projectId}/match/candidates`);
-  return response.data;
+  const response = await api.get<{ candidates: UnifiedCandidate[]; summary: { totalUnmatchedPositions: number; totalAffectedItems: number } }>(`/projects/${projectId}/match/candidates`);
+  return response.data.candidates;
 };
 
 export const overrideMatch = async (
@@ -158,6 +164,44 @@ export const runOptimization = async (projectId: string): Promise<IterationResul
 export const getLatestIteration = async (projectId: string): Promise<IterationResult> => {
   const response = await api.get<IterationResult>(`/projects/${projectId}/iterations/latest`);
   return response.data;
+};
+
+export const getSelectedIteration = async (projectId: string): Promise<IterationResult> => {
+  const response = await api.get<IterationResult>(`/projects/${projectId}/iterations/selected`);
+  return response.data;
+};
+
+export const getAllIterations = async (projectId: string): Promise<IterationResult[]> => {
+  const response = await api.get<IterationResult[]>(`/projects/${projectId}/iterations`);
+  return response.data;
+};
+
+export const selectIteration = async (projectId: string, iterationNumber: number): Promise<IterationResult> => {
+  const response = await api.post<IterationResult>(`/projects/${projectId}/iterations/${iterationNumber}/select`);
+  return response.data;
+};
+
+// Forecasts
+export const getAvailableStages = async (projectId: string): Promise<Array<{
+  code: string;
+  name: string;
+  itemCount: number;
+  currentForecast?: number;
+}>> => {
+  const response = await api.get<{ stages: Array<{
+    code: string;
+    name: string;
+    itemCount: number;
+    currentForecast?: number;
+  }> }>(`/projects/${projectId}/stages`);
+  return response.data.stages;
+};
+
+export const setManualForecasts = async (
+  projectId: string,
+  forecasts: Record<string, number>
+): Promise<void> => {
+  await api.post(`/projects/${projectId}/forecasts/manual`, { forecasts });
 };
 
 // Export

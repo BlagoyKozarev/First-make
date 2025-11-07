@@ -1,17 +1,31 @@
 using Core.Engine.Models;
 using OfficeOpenXml;
 using System.IO.Compression;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Engine.Services;
 
 /// <summary>
 /// Multi-file Excel export service
-/// Generates 19 КСС Excel files with filled values and packages as ZIP
+/// Generates КСС Excel files with filled values and packages as ZIP
+/// Includes summary file with all stages
 /// </summary>
 public class MultiFileExcelExporter
 {
+    private readonly SummaryExcelExporter _summaryExporter;
+    private readonly PriceCheckExporter _priceCheckExporter;
+    private readonly ILogger<MultiFileExcelExporter> _logger;
+
+    public MultiFileExcelExporter(ILogger<MultiFileExcelExporter> logger, ILogger<PriceCheckExporter> priceCheckLogger)
+    {
+        _logger = logger;
+        _summaryExporter = new SummaryExcelExporter();
+        _priceCheckExporter = new PriceCheckExporter(priceCheckLogger);
+    }
+
     /// <summary>
     /// Export all BOQ files with optimization results to ZIP
+    /// Includes summary file as first file in ZIP
     /// </summary>
     public async Task<byte[]> ExportToZipAsync(
         ProjectSession session,
@@ -23,6 +37,23 @@ public class MultiFileExcelExporter
         using var memoryStream = new MemoryStream();
         using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
         {
+            // First file: Summary Excel with all stages
+            var summaryBytes = await _summaryExporter.ExportSummaryAsync(session, iteration);
+            var summaryEntry = archive.CreateEntry("00_ОБОБЩЕНИЕ.xlsx", System.IO.Compression.CompressionLevel.Optimal);
+            using (var summaryStream = summaryEntry.Open())
+            {
+                await summaryStream.WriteAsync(summaryBytes, 0, summaryBytes.Length);
+            }
+
+            // Second file: Price verification file
+            var priceCheckBytes = _priceCheckExporter.ExportPriceCheck(session, iteration, matchResult);
+            var priceCheckEntry = archive.CreateEntry("01_ПРОВЕРКА_ЦЕНИ.xlsx", System.IO.Compression.CompressionLevel.Optimal);
+            using (var priceCheckStream = priceCheckEntry.Open())
+            {
+                await priceCheckStream.WriteAsync(priceCheckBytes, 0, priceCheckBytes.Length);
+            }
+
+            // Then add all individual BOQ files
             foreach (var doc in session.BoqDocuments)
             {
                 // Generate Excel for each BOQ file
@@ -121,14 +152,18 @@ public class MultiFileExcelExporter
                 if (colMap[key] >= workPriceCol)
                     colMap[key]++;
             }
-
-            colMap["price"]++;
-            colMap["value"]++;
+            
+            // Now the structure is: ... | Коеф.(E) | Работна цена(F) | Цена(G) | Стойност(H) | ...
+            colMap["workprice"] = workPriceCol; // F
         }
         else
         {
             workPriceCol = colMap["workprice"];
         }
+        
+        // Update references after all insertions
+        int priceCol = colMap["price"];   // G - Цена
+        int valueCol = colMap["value"];   // H - Стойност
 
         // Fill data rows
         int dataStartRow = headerRow + 4; // Usually row 12 for data
@@ -154,23 +189,28 @@ public class MultiFileExcelExporter
             if (!iteration.Coefficients.TryGetValue(itemMatch.UnifiedKey, out var coeff))
                 continue;
 
-            // Fill Коеф.
+            // Fill Коеф. (column E)
             worksheet.Cells[row, coeffCol].Value = coeff.Coefficient;
             worksheet.Cells[row, coeffCol].Style.Numberformat.Format = "0.0000";
 
-            // Fill Работна цена
-            worksheet.Cells[row, workPriceCol].Value = coeff.WorkPrice;
+            // Fill Работна цена (column F) = базова цена × коефициент
+            var workPrice = coeff.WorkPrice;
+            worksheet.Cells[row, workPriceCol].Value = workPrice;
             worksheet.Cells[row, workPriceCol].Style.Numberformat.Format = "#,##0.00";
 
-            // Fill цена (same as Работна цена)
-            worksheet.Cells[row, colMap["price"]].Value = coeff.WorkPrice;
-            worksheet.Cells[row, colMap["price"]].Style.Numberformat.Format = "#,##0.00";
+            // Fill Цена (column G) = Работна цена (F) закръглена до 2 знака
+            var roundedPrice = Math.Round(workPrice, 2);
+            worksheet.Cells[row, priceCol].Value = roundedPrice;
+            worksheet.Cells[row, priceCol].Style.Numberformat.Format = "#,##0.00";
 
-            // Fill стойност
-            var value = item.Quantity * coeff.WorkPrice;
-            worksheet.Cells[row, colMap["value"]].Value = value;
-            worksheet.Cells[row, colMap["value"]].Style.Numberformat.Format = "#,##0.00";
+            // Fill Стойност (column H) = Количество (D) × Цена (G) закръглена
+            var value = item.Quantity * roundedPrice;
+            worksheet.Cells[row, valueCol].Value = value;
+            worksheet.Cells[row, valueCol].Style.Numberformat.Format = "#,##0.00";
         }
+
+        // Add summary rows at the end for this stage
+        await AddStageSummaryRowsAsync(worksheet, doc, iteration, matchResult, colMap, dataStartRow);
 
         await Task.CompletedTask;
     }
@@ -230,6 +270,95 @@ public class MultiFileExcelExporter
         }
 
         return map;
+    }
+
+    /// <summary>
+    /// Add 3 summary rows at the end of each worksheet showing:
+    /// 1. Forecast value for the stage
+    /// 2. Proposed total value
+    /// 3. Gap (difference)
+    /// </summary>
+    private async Task AddStageSummaryRowsAsync(
+        ExcelWorksheet worksheet,
+        BoqDocument doc,
+        IterationResult iteration,
+        UnifiedMatchResult matchResult,
+        Dictionary<string, int> colMap,
+        int dataStartRow)
+    {
+        // Find the stage for this document
+        var firstItem = doc.Items.FirstOrDefault(i => i.SourceSheet == worksheet.Name);
+        if (firstItem == null)
+            return;
+
+        var stageCode = firstItem.StageCode;
+        
+        // Find the BOQ file result for this document
+        var boqResult = iteration.BoqResults.Values.FirstOrDefault(b => b.FileId == doc.SourceFileId);
+        if (boqResult == null)
+            return;
+            
+        var stageSummary = boqResult.Stages.FirstOrDefault(s => s.StageCode == stageCode);
+        if (stageSummary == null)
+            return;
+
+        // Calculate proposed total for this worksheet
+        decimal proposedTotal = 0;
+        for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
+        {
+            var valueCell = worksheet.Cells[row, colMap["value"]];
+            if (valueCell.Value is double dVal)
+                proposedTotal += (decimal)dVal;
+            else if (valueCell.Value is decimal decVal)
+                proposedTotal += decVal;
+        }
+
+        // Find last data row
+        int lastRow = worksheet.Dimension.End.Row;
+        
+        // Add 2 empty rows for spacing
+        int summaryStartRow = lastRow + 2;
+
+        // Row 1: Forecast
+        worksheet.Cells[summaryStartRow, colMap["name"]].Value = "ПРОГНОЗНА СТОЙНОСТ ЗА ЕТАПА:";
+        worksheet.Cells[summaryStartRow, colMap["name"]].Style.Font.Bold = true;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Value = stageSummary.Forecast;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Numberformat.Format = "#,##0.00";
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Font.Bold = true;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightBlue);
+
+        // Row 2: Proposed
+        summaryStartRow++;
+        worksheet.Cells[summaryStartRow, colMap["name"]].Value = "ПРЕДЛОЖЕНА СУМА ЗА ИЗПЪЛНЕНИЕ:";
+        worksheet.Cells[summaryStartRow, colMap["name"]].Style.Font.Bold = true;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Value = proposedTotal;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Numberformat.Format = "#,##0.00";
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Font.Bold = true;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGreen);
+
+        // Row 3: Gap (should be >= 0)
+        summaryStartRow++;
+        var gap = stageSummary.Forecast - proposedTotal;
+        worksheet.Cells[summaryStartRow, colMap["name"]].Value = "РАЗЛИКА (Прогноза - Предложена):";
+        worksheet.Cells[summaryStartRow, colMap["name"]].Style.Font.Bold = true;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Value = gap;
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Numberformat.Format = "#,##0.00";
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Font.Bold = true;
+        
+        // Color based on gap: green if >= 0, red if < 0
+        worksheet.Cells[summaryStartRow, colMap["value"]].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+        if (gap >= 0)
+        {
+            worksheet.Cells[summaryStartRow, colMap["value"]].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGreen);
+        }
+        else
+        {
+            worksheet.Cells[summaryStartRow, colMap["value"]].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightCoral);
+        }
+
+        await Task.CompletedTask;
     }
 
     /// <summary>

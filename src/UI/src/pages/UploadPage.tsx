@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
 import {
   uploadKssFiles,
-  uploadUkazaniaFiles,
+  uploadForecastFiles,
   uploadPriceBaseFiles,
   uploadTemplateFile,
   getProject,
@@ -136,6 +136,7 @@ export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string>('');
+  const [filesUploaded, setFilesUploaded] = useState(false); // Track if files are uploaded
 
   // File states
   const [kssFiles, setKssFiles] = useState<File[]>([]);
@@ -145,15 +146,23 @@ export default function UploadPage() {
 
   useEffect(() => {
     const storedProjectId = sessionStorage.getItem('currentProjectId');
+    console.log('UploadPage: Checking for project ID...', storedProjectId);
+    
     if (!storedProjectId) {
-      navigate('/');
+      console.warn('UploadPage: No project ID found in sessionStorage, redirecting to setup');
+      setError('Моля, първо създайте проект от началната страница');
+      setTimeout(() => navigate('/'), 2000);
     } else {
+      console.log('UploadPage: Found project ID:', storedProjectId);
       setProjectId(storedProjectId);
     }
   }, [navigate]);
 
   const handleUploadAll = async () => {
-    if (!projectId) return;
+    if (!projectId) {
+      setError('Няма активен проект. Моля, създайте проект от началната страница.');
+      return;
+    }
 
     // Validation
     if (kssFiles.length === 0) {
@@ -161,6 +170,7 @@ export default function UploadPage() {
       return;
     }
 
+    console.log('Starting upload for project:', projectId);
     setIsUploading(true);
     setError(null);
 
@@ -171,10 +181,10 @@ export default function UploadPage() {
         await uploadKssFiles(projectId, kssFiles);
       }
 
-      // Upload Указания files
+      // Upload Forecast files (прогнозни стойности)
       if (ukazaniaFiles.length > 0) {
-        setUploadProgress('Качване на Указания...');
-        await uploadUkazaniaFiles(projectId, ukazaniaFiles);
+        setUploadProgress('Качване на файл с прогнози...');
+        await uploadForecastFiles(projectId, ukazaniaFiles);
       }
 
       // Upload Price Base files
@@ -194,12 +204,18 @@ export default function UploadPage() {
       // Fetch updated project info
       await getProject(projectId);
 
-      // Navigate to match page
-      setTimeout(() => navigate('/match'), 500);
+      // Mark files as uploaded
+      setFilesUploaded(true);
+      setUploadProgress('Файловете са качени успешно!');
     } catch (err) {
       console.error('Upload failed:', err);
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Грешка при качване на файлове');
+      const error = err as { response?: { data?: { error?: string; message?: string; details?: string } } };
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          'Грешка при качване на файлове';
+      const errorDetails = error.response?.data?.details;
+      
+      setError(errorDetails ? `${errorMessage}\n\nДетайли: ${errorDetails}` : errorMessage);
     } finally {
       setIsUploading(false);
       setUploadProgress('');
@@ -224,20 +240,20 @@ export default function UploadPage() {
           title="КСС Файлове"
           description="Excel файлове (.xlsx) с количествени сметки"
           accept=".xlsx"
-          maxFiles={25}
+          maxFiles={40}
           files={kssFiles}
           onFilesChange={setKssFiles}
           icon="📊"
         />
 
         <UploadZone
-          title="Указания"
-          description="Word файлове (.docx) с прогнози по етапи"
-          accept=".docx"
+          title="Прогнозни стойности по етапи"
+          description="Excel файл (.xlsx) с колони: Етап, Прогноза"
+          accept=".xlsx"
           maxFiles={2}
           files={ukazaniaFiles}
           onFilesChange={setUkazaniaFiles}
-          icon="📝"
+          icon="�"
         />
 
         <UploadZone
@@ -286,10 +302,10 @@ export default function UploadPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <p className="text-muted-foreground">КСС файлове</p>
-            <p className="font-semibold">{kssFiles.length} / 25</p>
+            <p className="font-semibold">{kssFiles.length} / 40</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Указания</p>
+            <p className="text-muted-foreground">Прогнози</p>
             <p className="font-semibold">{ukazaniaFiles.length} / 2</p>
           </div>
           <div>
@@ -318,23 +334,35 @@ export default function UploadPage() {
           Назад
         </button>
 
-        <button
-          onClick={handleUploadAll}
-          disabled={!canUpload}
-          className="px-6 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-        >
-          {isUploading ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-              Качване...
-            </>
-          ) : (
+        {!filesUploaded ? (
+          <button
+            onClick={handleUploadAll}
+            disabled={!canUpload}
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            {isUploading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                Качване...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                Качи файлове
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate('/match')}
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+          >
             <>
               <CheckCircle className="w-4 h-4" />
-              Качи файлове и продължи
+              Продължи към съпоставяне
             </>
-          )}
-        </button>
+          </button>
+        )}
       </div>
 
       {/* Info Section */}
@@ -342,7 +370,7 @@ export default function UploadPage() {
         <h3 className="font-medium text-blue-900 mb-2">ℹ️ Важна информация</h3>
         <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
           <li>КСС файловете трябва да съдържат колони: Наименование, Мярка, Количество, Етап</li>
-          <li>Указанията трябва да съдържат прогнозни стойности по етапи</li>
+          <li>Файлът с прогнози трябва да е Excel (.xlsx) с 2 колони: "Етап" (код) и "Прогноза" (стойност в лева)</li>
           <li>Ценовата база трябва да съдържа: Наименование, Мярка, Единична цена</li>
           <li>Всички файлове се парсват автоматично при качване</li>
           <li>След качването ще преминете към преглед на съпоставянията</li>

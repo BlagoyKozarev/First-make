@@ -144,7 +144,7 @@ export default function SetupPage() {
       <div className="mt-6 bg-muted/50 p-4 rounded-md">
         <h3 className="font-medium mb-2">ℹ️ Следващи стъпки:</h3>
         <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-          <li>Качване на КСС файлове (до 25 броя)</li>
+          <li>Качване на КСС файлове (до 40 броя)</li>
           <li>Качване на Указания (до 2 броя)</li>
           <li>Качване на Ценова база (до 2 броя)</li>
           <li>Качване на шаблон (по избор)</li>
